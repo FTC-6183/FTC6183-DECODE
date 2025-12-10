@@ -1,0 +1,105 @@
+package org.firstinspires.ftc.teamcode;
+
+import com.qualcomm.hardware.limelightvision.Limelight3A;
+
+import org.firstinspires.ftc.teamcode.Subsystems.Drivetrain;
+import org.firstinspires.ftc.teamcode.Subsystems.Intake;
+import org.firstinspires.ftc.teamcode.Subsystems.Spindexer;
+import org.firstinspires.ftc.teamcode.Subsystems.Transfer;
+import org.firstinspires.ftc.teamcode.Subsystems.Turret;
+import org.firstinspires.ftc.teamcode.Utils.Aliance;
+
+import dev.nextftc.core.commands.Command;
+import dev.nextftc.core.commands.conditionals.IfElseCommand;
+import dev.nextftc.core.commands.delays.WaitUntil;
+import dev.nextftc.core.commands.groups.ParallelGroup;
+import dev.nextftc.core.commands.groups.SequentialGroup;
+import dev.nextftc.core.commands.utility.InstantCommand;
+import dev.nextftc.core.commands.utility.LambdaCommand;
+import dev.nextftc.core.commands.utility.PerpetualCommand;
+import dev.nextftc.core.subsystems.Subsystem;
+import dev.nextftc.core.subsystems.SubsystemGroup;
+
+public class Robot extends SubsystemGroup {
+    public static Aliance aliance;
+    public static Limelight3A l;
+    public Robot(Aliance a){
+        super(
+                Drivetrain.INSTANCE,
+                Intake.INSTANCE,
+                Spindexer.INSTANCE,
+                Transfer.INSTANCE,
+                Turret.INSTANCE
+        );
+        aliance = a;
+    }
+    public Command intakeOn(){
+        Command intakeSequence = new ParallelGroup(
+                Intake.INSTANCE.on(),
+                new PerpetualCommand(Spindexer.INSTANCE.setToFreePosition())
+        );
+        return intakeSequence;
+    }
+    public Command intakeOff(){
+        Command intakeOff = new ParallelGroup(
+                Intake.INSTANCE.idle(),
+                Spindexer.INSTANCE.stop()
+        );
+        return intakeOff;
+    }
+    public Command shootOneSequence(){
+        Command shootSequence = new SequentialGroup(
+                intakeOff(),
+                Turret.INSTANCE.on,
+                Spindexer.INSTANCE.setToFilledPosition(),
+                Turret.INSTANCE.waitToShoot,
+                Transfer.INSTANCE.transferUp(),
+                Transfer.INSTANCE.transferDown(),
+                Spindexer.INSTANCE.setToFilledPosition(),
+                Turret.INSTANCE.off
+                );
+        return shootSequence;
+    }
+    public static Command runUntilEmpty(){
+        return new LambdaCommand()
+                .setUpdate(new SequentialGroup(
+                        Spindexer.INSTANCE.setToFilledPosition(),
+                        Turret.INSTANCE.waitToShoot,
+                        Transfer.INSTANCE.transferUp(),
+                        Transfer.INSTANCE.transferDown()))
+                .setIsDone(()->Spindexer.INSTANCE.empty);
+    }
+
+    public static Command runMotif(int pattern){
+        return new LambdaCommand()
+                .setUpdate(new SequentialGroup(
+                        Spindexer.INSTANCE.setToFilledPosition(pattern),
+                        Turret.INSTANCE.waitToShoot,
+                        Transfer.INSTANCE.transferUp(),
+                        Transfer.INSTANCE.transferDown()))
+                .setIsDone(()->Spindexer.INSTANCE.empty);
+    }
+
+    public Command shootAllSequence(){
+        Command fullShootSequence = new SequentialGroup(
+                intakeOff(),
+                Turret.INSTANCE.on,
+                runUntilEmpty(),
+                Turret.INSTANCE.off
+        );
+        return fullShootSequence;
+    }
+    public Command shootMotifSequence(int pattern){
+        Command fullShootSequence = new SequentialGroup(
+                intakeOff(),
+                Turret.INSTANCE.on,
+                runMotif(pattern),
+                Turret.INSTANCE.off
+        );
+        return fullShootSequence;
+
+    }
+    public Command drive(){
+       return Drivetrain.INSTANCE.startRobotDrive();
+    }
+}

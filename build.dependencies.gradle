@@ -22,10 +22,11 @@ dependencies {
     implementation 'com.pedropathing:telemetry:1.0.0'
     implementation 'com.bylazar:fullpanels:1.0.6'
     implementation 'dev.nextftc.extensions:pedro:1.0.0'
-    /*
-    implementation('com.acmerobotics.dashboard:dashboard:0.5.0') {
+
+
+    implementation('com.acmerobotics.dashboard:dashboard:0.5.1') {
             exclude group: 'org.firstinspires.ftc'
     }
-     */
+
 }
 

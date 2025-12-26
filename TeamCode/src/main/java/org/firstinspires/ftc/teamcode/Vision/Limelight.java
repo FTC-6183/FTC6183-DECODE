@@ -45,7 +45,7 @@ public class Limelight implements Subsystem {
     public double angleFromTag(double tagID){
         limelight.start();
         List<LLResultTypes.FiducialResult> r = limelight.getLatestResult().getFiducialResults();
-        if(r.isEmpty()) return 0;
+        if(r.isEmpty()) return -1;
         LLResultTypes.FiducialResult target = null;
         for(LLResultTypes.FiducialResult fiducial : r){
             int id = fiducial.getFiducialId();
@@ -57,7 +57,7 @@ public class Limelight implements Subsystem {
         if(target != null){
             return target.getTargetXDegrees();
         }
-        return 0;
+        return -1;
     }
     public double distanceFromTag(double tagID){
         limelight.start();
@@ -73,8 +73,8 @@ public class Limelight implements Subsystem {
         }
 
         if(target != null){
-            double x  = (target.getCameraPoseTargetSpace().getPosition().x);
-            double z  = (target.getCameraPoseTargetSpace().getPosition().z);
+            double x  = (target.getCameraPoseTargetSpace().getPosition().x/DistanceUnit.mPerInch)+16;
+            double z  = (target.getCameraPoseTargetSpace().getPosition().z/DistanceUnit.mPerInch)+16;
 
             Vector distance = new Vector();
             distance.setOrthogonalComponents(x,z);
@@ -82,7 +82,7 @@ public class Limelight implements Subsystem {
         }
         return 0;
     }
-    public double patternFromObelisk(double tagID){
+    public double patternFromObelisk(){
         limelight.start();
         List<LLResultTypes.FiducialResult> r = limelight.getLatestResult().getFiducialResults();
         if(r.isEmpty()) return -1;

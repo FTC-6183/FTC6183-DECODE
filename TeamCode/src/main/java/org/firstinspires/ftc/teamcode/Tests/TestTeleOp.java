@@ -1,4 +1,4 @@
-package org.firstinspires.ftc.teamcode.TeleOp;
+package org.firstinspires.ftc.teamcode.Tests;
 
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
@@ -8,7 +8,6 @@ import org.firstinspires.ftc.teamcode.Utils.Aliance;
 import dev.nextftc.bindings.BindingManager;
 import dev.nextftc.core.components.BindingsComponent;
 import dev.nextftc.core.components.SubsystemComponent;
-import dev.nextftc.ftc.Gamepads;
 import dev.nextftc.ftc.NextFTCOpMode;
 import dev.nextftc.ftc.components.BulkReadComponent;
 
@@ -24,6 +23,7 @@ public class TestTeleOp extends NextFTCOpMode {
     }
     @Override
     public void onStartButtonPressed(){
+        /*
         Gamepads.gamepad1().a()
                 .toggleOnBecomesTrue()
                 .whenBecomesTrue(robot.intakeOn())
@@ -32,6 +32,7 @@ public class TestTeleOp extends NextFTCOpMode {
                 .whenBecomesTrue(robot.shootOneSequence());
         Gamepads.gamepad1().y()
                 .whenBecomesTrue(robot.shootAllSequence());
+                */
         robot.drive();
     }
     @Override

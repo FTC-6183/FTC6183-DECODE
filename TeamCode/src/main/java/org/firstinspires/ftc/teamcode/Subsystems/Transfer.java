@@ -13,15 +13,23 @@ public class Transfer implements Subsystem {
     private ServoEx leftFork = new ServoEx("leftFork");
     private ServoEx rightFork = new ServoEx("rightFork");
 
-    private double up = 1;
-    private double down = 0;
+    private double leftUp = 1;
+    private double rightUp = 0.1;
+
+    private double leftDown = 0.1;
+    private double rightDown = 1;
     public Command transferUp(){
-        return new SetPosition(leftFork,up).and(new SetPosition(rightFork,up));
+        return new SetPosition(leftFork,leftUp).and(new SetPosition(rightFork,rightUp));
 
     }
     public Command transferDown(){
-        return new SetPosition(leftFork,down).and(new SetPosition(rightFork,down));
+        return new SetPosition(leftFork,leftDown).and(new SetPosition(rightFork,rightDown));
     }
+
+    public String servoPosition(){
+        return "Left Servo Position is " +leftFork.getPosition()+" Right Servo Position is " + rightFork.getPosition();
+    }
+
 
 
 }

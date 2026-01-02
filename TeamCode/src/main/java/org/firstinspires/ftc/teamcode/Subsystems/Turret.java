@@ -45,9 +45,7 @@ public class Turret implements Subsystem {
     private MotorEx shooterMotor1 = new MotorEx("shoot1");
     private MotorEx shooterMotor2 = new MotorEx("shoot2");
     private ServoEx hoodServo = new ServoEx("hood");
-    //private ServoEx leftTurretServo = new ServoEx("leftTurret");
-    //private ServoEx rightTurretServo = new ServoEx("rightTurret");
-    private CRServoEx rightTurretServo = new CRServoEx("rightTurret");
+    private CRServoEx turret = new CRServoEx("turret");
     private AnalogInput encoder;
 
     public static final double ANGLE_TO_POSITION = (double) 1 /360;
@@ -70,7 +68,7 @@ public class Turret implements Subsystem {
     @Override public void initialize(){
         shooterMotor1.setPower(0);
         shooterMotor2.setPower(0);
-        rightTurretServo.setPower(0);
+        turret.setPower(0);
         encoder = ActiveOpMode.hardwareMap().get(AnalogInput.class,"encoderServo");
 
 
@@ -147,9 +145,12 @@ public class Turret implements Subsystem {
         return new RunToVelocity(velocityControl,velocity).requires(this);
     }
 
+
     public double getTurretPower(){
-        return rightTurretServo.getPower();
+          return turret.getPower();
     }
+
+
     public double turretPIDCorrection(){
         return turretControl.calculate(new KineticState(getAbsoluteAngleFromEncoder()));
     }
@@ -168,8 +169,8 @@ public class Turret implements Subsystem {
     public final Command testOtherWay = new SetPower(shooterMotor1,-1).and(new SetPower(shooterMotor2,1));
     public final Command testOff = new SetPower(shooterMotor1,0).and(new SetPower(shooterMotor2,0));
     public final Command waitToShoot = new WaitUntil(()->(Math.abs(Turret.INSTANCE.getVelocityOne())-Math.abs(Turret.INSTANCE.distanceToVelocity())< Turret.threshold));
-    public final Command testServoOn = new SetPower(rightTurretServo,0.5);
-    public final Command testServoOff = new SetPower(rightTurretServo,0);
+    public final Command testServoOn = new SetPower(turret,0.5);
+    public final Command testServoOff = new SetPower(turret,0);
 
 
     public double getVelocityOne(){return shooterMotor1.getVelocity();}
@@ -186,12 +187,8 @@ public class Turret implements Subsystem {
     public void periodic(){
         shooterMotor1.setPower(velocityControl.calculate(shooterMotor1.getState()));
         shooterMotor2.setPower(-velocityControl.calculate(shooterMotor1.getState()));
-        rightTurretServo.setPower(turretControl.calculate(new KineticState(getAbsoluteAngleFromEncoder())));
-        //leftTurretServo.setPosition(headingToTurretPosition(angleGlobal));
-        //rightTurretServo.setPosition(headingToTurretPosition());
-        //hoodServo.setPosition(distanceToPosition());
-        //ActiveOpMode.telemetry().addData("Velocity Output Shooter Up",velocityControl.calculate(shooterMotor1.getState()));
-        //ActiveOpMode.telemetry().addData("Velocity Output Shooter Down",velocityControl.calculate(shooterMotor2.getState()));
+        turret.setPower(turretControl.calculate(new KineticState(getAbsoluteAngleFromEncoder())));
+
     }
 
 }

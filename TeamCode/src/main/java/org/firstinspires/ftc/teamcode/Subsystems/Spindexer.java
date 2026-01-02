@@ -1,9 +1,10 @@
 package org.firstinspires.ftc.teamcode.Subsystems;
 
-import com.qualcomm.hardware.rev.RevColorSensorV3;
-import com.qualcomm.robotcore.hardware.DigitalChannel;
+import static java.lang.Math.abs;
 
-import org.opencv.ml.EM;
+import com.acmerobotics.dashboard.config.Config;
+import com.qualcomm.robotcore.hardware.AnalogInput;
+import com.qualcomm.robotcore.hardware.DigitalChannel;
 
 import dev.nextftc.control.ControlSystem;
 import dev.nextftc.control.feedback.AngleType;
@@ -13,40 +14,65 @@ import dev.nextftc.core.commands.utility.InstantCommand;
 import dev.nextftc.core.commands.utility.NullCommand;
 import dev.nextftc.core.subsystems.Subsystem;
 import dev.nextftc.ftc.ActiveOpMode;
-import dev.nextftc.hardware.controllable.RunToPosition;
 import dev.nextftc.hardware.impl.CRServoEx;
-import dev.nextftc.hardware.impl.MotorEx;
 
+@Config
 public class Spindexer implements Subsystem {
+    public static PIDCoefficients spinCoefficients = new PIDCoefficients(0.001,0,0);
+    private double power = 0;
+
+    public double spindexerOffset = 0;
+    public static double pValue = 0.006;
     public static final Spindexer INSTANCE = new Spindexer();
+
     private Spindexer(){}
 
-    private CRServoEx spinServo = new CRServoEx("spin");
     //Pin 0 detects Green
     //Pin 1 detects Purple
+    private CRServoEx spinServo = new CRServoEx("spinServo");
+
     private DigitalChannel leftColorSensorPin0;
     private DigitalChannel leftColorSensorPin1;
     private DigitalChannel rightColorSensorPin0;
     private DigitalChannel rightColorSensorPin1;
 
-    private MotorEx spinEncoder = new MotorEx("spinEncoder");
+    private AnalogInput spinEncoder;
     public enum Position{
         POSITION_ONE,
         POSITION_TWO,
         POSITION_THREE;
 
-        public Position next(){
+        public static Position next(){
             Position[] positions = values();
-            int nextPosition = (currentPosition.ordinal()+1)% positions.length;
+            int nextPosition = (currentPosition.ordinal()+1) % positions.length;
+            currentPosition = positions[nextPosition];
+            return positions[nextPosition];
+        }
+        public static Position previous(){
+            Position[] positions = values();
+            int nextPosition = Math.abs(currentPosition.ordinal()-1) % positions.length;
+            currentPosition = positions[nextPosition];
             return positions[nextPosition];
         }
 
     }
     private static Position currentPosition = Position.POSITION_ONE;
-    private double angleOne = 0;
-    private double angleTwo = 120;
-    private double angleThree = 240;
-    private double angles[] = new double[3];
+    /*
+    private double angleOne = 18.55;
+    private double angleTwo = 137.89;
+    private double angleThree = 259.2;
+     */
+    private double intakeAngleOne = 20;
+    private double intakeAngleTwo = 140;
+    private double intakeAngleThree = 270;
+
+    private double shootAngleOne = 75;
+    private double shootAngleTwo = 193;
+    private double shootAngleThree = 320;
+
+
+    private double intakeAngles[] = new double[]{intakeAngleOne, intakeAngleTwo, intakeAngleThree};
+    private double shootAngles[] = new double[]{shootAngleOne,shootAngleTwo,shootAngleThree};
     private double TICKTODEGREES = (double) 360 / 4000;
     //Zero is Green, One is Purple, Negative One is empty
 
@@ -61,18 +87,25 @@ public class Spindexer implements Subsystem {
     private int colorPointer = -1;
 
     private int[] ballAtPosition = new int[3];
-    private PIDCoefficients coefficients = new PIDCoefficients(0,0,0);
+
     private ControlSystem spindexerControl = ControlSystem.builder()
-            .angular(AngleType.DEGREES,
-                    feedbackElementBuilder -> feedbackElementBuilder.posPid(coefficients))
-            .build();
+    .angular(AngleType.DEGREES,
+                    feedback -> feedback.posPid(spinCoefficients))
+     .build();
+
+
     //TODO: Remember to change the mode of the Color Sensor
     @Override
     public void initialize(){
+        /*
         leftColorSensorPin0 = ActiveOpMode.hardwareMap().digitalChannel.get("leftPin0");
         leftColorSensorPin1 = ActiveOpMode.hardwareMap().digitalChannel.get("leftPin1");
         rightColorSensorPin0 = ActiveOpMode.hardwareMap().digitalChannel.get("rightPin0");
         rightColorSensorPin1 = ActiveOpMode.hardwareMap().digitalChannel.get("rightPin1");
+         */
+        spinEncoder = ActiveOpMode.hardwareMap().get(AnalogInput.class,"spinEncoder");
+        spinServo.setPower(0);
+
         for(int i = 0; i < ballAtPosition.length; i++){
             ballAtPosition[i] = EMPTY;
         }
@@ -81,6 +114,23 @@ public class Spindexer implements Subsystem {
         colorPointer = -1;
 
     }
+    public double getCurrentAngleFromEncoder() {
+        if (spinEncoder == null) return 0;
+        return (spinEncoder.getVoltage() / 3.3) * 360;
+    }
+    public double getAbsoluteAngleFromEncoder(){
+        double angle = getCurrentAngleFromEncoder();
+        double wrappedAngle = ((angle+180)%360+360)%360-180;
+        return wrappedAngle;
+    }
+
+    /*
+    public double getAbsoluteAngleFromEncoder(){
+        double angle = getCurrentAngleFromEncoder()-spindexerOffset;
+        double wrappedAngle = ((angle+180)%360+360)%360-180;
+        return wrappedAngle;
+    }
+    */
     public int[] getBallAtPosition(){
         return ballAtPosition;
     }
@@ -106,20 +156,26 @@ public class Spindexer implements Subsystem {
         }
         return -1;
     }
-    public Command setToPosition(Position position){
+
+    public Command setToPosition(Position position, String type){
         currentPosition = position;
-        switch(position){
-            case POSITION_ONE:
-                return new RunToPosition(spindexerControl,angleOne);
-            case POSITION_TWO:
-                return new RunToPosition(spindexerControl,angleTwo);
-            case POSITION_THREE:
-                return new RunToPosition(spindexerControl,angleThree);
+        if(type.equals("Intake")){
+            return new InstantCommand(setAngle(intakeAngles[position.ordinal()]));
         }
-        return new RunToPosition(spindexerControl,angleOne);
+        else if(type.equals("Shoot")){
+            return new InstantCommand(setAngle(shootAngles[position.ordinal()]));
+        }
+        return new InstantCommand(setAngle(intakeAngles[position.ordinal()]));
     }
-    public Command nextPosition(){
-        return setToPosition(currentPosition.next());
+
+    /*public Command setToAngle(double angle){
+        return new RunToPosition(spindexerControl,angle);
+    }
+    */
+
+    public Command nextPosition(String type){
+        currentPosition = currentPosition.next();
+        return setToPosition(currentPosition.next(),"Intake");
     }
     public int freePosition(){
         int position = currentPosition.ordinal();
@@ -145,7 +201,7 @@ public class Spindexer implements Subsystem {
     }
     public Command setToFreePosition(){
         if(freePosition()!=-1){
-            return setToPosition(Position.values()[freePosition()]).requires(this);
+            return setToPosition(Position.values()[freePosition()],"Intake").requires(this);
         }
         else{
             full = true;
@@ -154,7 +210,7 @@ public class Spindexer implements Subsystem {
     }
     public Command setToFilledPosition(){
         if(filledPosition()!=-1){
-            return setToPosition(Position.values()[filledPosition()]).requires(this);
+            return setToPosition(Position.values()[filledPosition()],"Intake").requires(this);
         }
         else{
             empty = true;
@@ -175,8 +231,22 @@ public class Spindexer implements Subsystem {
                 default:
                     color = new int[]{GREEN, GREEN, GREEN};
             };
-            setToPosition(Position.values()[findColor(color[colorPointer])]).requires(this);
+            setToPosition(Position.values()[findColor(color[colorPointer])],"Intake").requires(this);
         });
+    }
+    public static double wrapDeg(double angle) {
+        angle %= 360.0;
+        if (angle >= 180.0) angle -= 360.0;
+        if (angle < -180.0) angle += 360.0;
+        return angle;
+    }
+    public double getPower(){
+        return power;
+
+    }
+    public Command setAngle(double goal){
+        return new InstantCommand(()-> power = pValue * wrapDeg(getAbsoluteAngleFromEncoder()-goal));
+
     }
     public Command stop(){
         return new NullCommand().requires(this);
@@ -184,8 +254,6 @@ public class Spindexer implements Subsystem {
 
     @Override
     public void periodic() {
-        Subsystem.super.periodic();
-        spinServo.setPower(spindexerControl.calculate(spinEncoder.getState().times(TICKTODEGREES)));
-        readCurrentValue();
+        spinServo.setPower(power);
     }
 }

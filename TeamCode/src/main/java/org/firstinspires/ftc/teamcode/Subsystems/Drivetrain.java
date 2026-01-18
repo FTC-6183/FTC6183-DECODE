@@ -3,6 +3,7 @@ package org.firstinspires.ftc.teamcode.Subsystems;
 import dev.nextftc.control.ControlSystem;
 import dev.nextftc.core.commands.Command;
 import dev.nextftc.core.subsystems.Subsystem;
+import dev.nextftc.extensions.pedro.PedroDriverControlled;
 import dev.nextftc.ftc.Gamepads;
 import dev.nextftc.hardware.driving.FieldCentric;
 import dev.nextftc.hardware.driving.MecanumDriverControlled;
@@ -33,6 +34,14 @@ public class Drivetrain implements Subsystem {
                     Gamepads.gamepad1().rightStickX()
             );
         }
+
+    }
+    public Command startPedroRobotDrive(){
+        return new PedroDriverControlled(
+                Gamepads.gamepad1().leftStickY().negate(),
+                Gamepads.gamepad1().leftStickX(),
+                Gamepads.gamepad1().rightStickX()
+        );
     }
 
         public Command startFieldDrive () {

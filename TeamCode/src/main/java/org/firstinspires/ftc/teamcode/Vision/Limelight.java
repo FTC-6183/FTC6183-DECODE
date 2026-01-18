@@ -2,6 +2,8 @@ package org.firstinspires.ftc.teamcode.Vision;
 
 import com.pedropathing.ftc.InvertedFTCCoordinates;
 import com.pedropathing.ftc.PoseConverter;
+import com.pedropathing.geometry.CoordinateSystem;
+import com.pedropathing.geometry.PedroCoordinates;
 import com.pedropathing.geometry.Pose;
 import com.pedropathing.math.Vector;
 import com.qualcomm.hardware.limelightvision.LLResultTypes;
@@ -11,8 +13,6 @@ import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
-import org.firstinspires.ftc.teamcode.Subsystems.Spindexer;
-import org.firstinspires.ftc.teamcode.Subsystems.Turret;
 
 import java.util.List;
 
@@ -95,7 +95,7 @@ public class Limelight implements Subsystem {
         return -1;
     }
     //TODO: Implement Kalman Filter
-    public Pose relocalizeFromCamera() {
+    public Pose relocalizeFromCameraPedro() {
         limelight.start();
         List<LLResultTypes.FiducialResult> r = limelight.getLatestResult().getFiducialResults();
         if (r.isEmpty()) return null;
@@ -113,19 +113,55 @@ public class Limelight implements Subsystem {
             }
         }
         //Basic Implementation, Will fix later with Kalman Filter and Sensor integration
-        redGoalPose = (redGoal != null)?new Pose2D(redGoal.getPosition().unit, redGoal.getPosition().x,redGoal.getPosition().y, AngleUnit.RADIANS,redGoal.getOrientation().getYaw()):null;
-        blueGoalPose = (blueGoal != null)? new Pose2D(blueGoal.getPosition().unit, blueGoal.getPosition().x,blueGoal.getPosition().y,AngleUnit.RADIANS, blueGoal.getOrientation().getYaw()):null;
+        redGoalPose = (redGoal != null) ? new Pose2D(redGoal.getPosition().unit, redGoal.getPosition().x,redGoal.getPosition().y, AngleUnit.DEGREES,redGoal.getOrientation().getYaw()):null;
+        blueGoalPose = (blueGoal != null) ?  new Pose2D(blueGoal.getPosition().unit, blueGoal.getPosition().x,blueGoal.getPosition().y,AngleUnit.DEGREES, blueGoal.getOrientation().getYaw()):null;
         if(redGoalPose == null && blueGoalPose != null){
             return PoseConverter.pose2DToPose(blueGoalPose, InvertedFTCCoordinates.INSTANCE);
         }
         if(redGoalPose != null && blueGoalPose == null){
             return PoseConverter.pose2DToPose(redGoalPose, InvertedFTCCoordinates.INSTANCE);
         }
-        if(distanceFromTag(RED_GOAL_ID)>=distanceFromTag(BLUE_GOAL_ID)){
+        if(distanceFromTag(RED_GOAL_ID)>=distanceFromTag(BLUE_GOAL_ID) && redGoalPose != null){
             return PoseConverter.pose2DToPose(redGoalPose, InvertedFTCCoordinates.INSTANCE);
         }
-        if(distanceFromTag(BLUE_GOAL_ID)>distanceFromTag(RED_GOAL_ID)){
-             return PoseConverter.pose2DToPose(blueGoalPose, InvertedFTCCoordinates.INSTANCE);
+        if(distanceFromTag(BLUE_GOAL_ID)>distanceFromTag(RED_GOAL_ID) && blueGoalPose == null) {
+            return PoseConverter.pose2DToPose(blueGoalPose, InvertedFTCCoordinates.INSTANCE);
+        }
+        return null;
+    }
+
+    public Pose2D relocalizeFromCameraRegular() {
+        limelight.start();
+        List<LLResultTypes.FiducialResult> r = limelight.getLatestResult().getFiducialResults();
+        if (r.isEmpty()) return null;
+        Pose3D redGoal = null;
+        Pose3D blueGoal = null;
+        Pose2D blueGoalPose = null;
+        Pose2D redGoalPose = null;
+        for (LLResultTypes.FiducialResult fiducial : r) {
+            int id = fiducial.getFiducialId();
+            if(id == RED_GOAL_ID){
+                redGoal = fiducial.getRobotPoseFieldSpace();
+            }
+            if(id == BLUE_GOAL_ID){
+                blueGoal = fiducial.getRobotPoseFieldSpace();
+            }
+        }
+        //Basic Implementation, Will fix later with Kalman Filter and Sensor integration
+        redGoalPose = (redGoal != null) ? new Pose2D(DistanceUnit.INCH, redGoal.getPosition().x/DistanceUnit.mPerInch,redGoal.getPosition().y/DistanceUnit.mPerInch, AngleUnit.DEGREES,redGoal.getOrientation().getYaw()):null;
+        blueGoalPose = (blueGoal != null) ?  new Pose2D(DistanceUnit.INCH, blueGoal.getPosition().x/DistanceUnit.mPerInch,blueGoal.getPosition().y/DistanceUnit.mPerInch,AngleUnit.DEGREES, blueGoal.getOrientation().getYaw()):null;
+
+        if(redGoalPose == null && blueGoalPose != null){
+            return redGoalPose;
+        }
+        if(redGoalPose != null && blueGoalPose == null){
+            return blueGoalPose;
+        }
+        if(distanceFromTag(RED_GOAL_ID)>=distanceFromTag(BLUE_GOAL_ID) && redGoalPose != null){
+            return redGoalPose;
+        }
+        if(distanceFromTag(BLUE_GOAL_ID)>distanceFromTag(RED_GOAL_ID) && blueGoalPose == null) {
+            return blueGoalPose;
         }
         return null;
     }

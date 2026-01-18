@@ -1,5 +1,7 @@
 package org.firstinspires.ftc.teamcode;
 
+import static org.firstinspires.ftc.teamcode.Subsystems.Turret.turretVelocity;
+
 import com.qualcomm.hardware.limelightvision.Limelight3A;
 
 import org.firstinspires.ftc.teamcode.Subsystems.Drivetrain;
@@ -33,6 +35,7 @@ public class Robot extends SubsystemGroup {
         );
         aliance = a;
     }
+    /*
     public Command intakeOn(){
         Command intakeSequence = new ParallelGroup(
                 Intake.INSTANCE.on(),
@@ -40,22 +43,26 @@ public class Robot extends SubsystemGroup {
         );
         return intakeSequence;
     }
+    */
+    public Command intakeOn(){
+        return Intake.INSTANCE.on();
+    }
     public Command intakeOff(){
         Command intakeOff = new ParallelGroup(
-                Intake.INSTANCE.idle(),
-                Spindexer.INSTANCE.stop()
+                Intake.INSTANCE.idle()
+                //Spindexer.INSTANCE.stop()
         );
         return intakeOff;
     }
     public Command shootOneSequence(){
         Command shootSequence = new SequentialGroup(
                 intakeOff(),
-                Turret.INSTANCE.on,
-                Spindexer.INSTANCE.setToFilledPosition(),
+                Turret.INSTANCE.on(),
+                //Spindexer.INSTANCE.setToFilledPosition(),
                 Turret.INSTANCE.waitToShoot,
                 Transfer.INSTANCE.transferUp(),
                 Transfer.INSTANCE.transferDown(),
-                Spindexer.INSTANCE.setToFilledPosition(),
+                //Spindexer.INSTANCE.setToFilledPosition(),
                 Turret.INSTANCE.off
                 );
         return shootSequence;
@@ -63,7 +70,7 @@ public class Robot extends SubsystemGroup {
     public static Command runUntilEmpty(){
         return new LambdaCommand()
                 .setUpdate(new SequentialGroup(
-                        Spindexer.INSTANCE.setToFilledPosition(),
+                        //Spindexer.INSTANCE.setToFilledPosition(),
                         Turret.INSTANCE.waitToShoot,
                         Transfer.INSTANCE.transferUp(),
                         Transfer.INSTANCE.transferDown()))
@@ -73,7 +80,7 @@ public class Robot extends SubsystemGroup {
     public static Command runMotif(int pattern){
         return new LambdaCommand()
                 .setUpdate(new SequentialGroup(
-                        Spindexer.INSTANCE.setToFilledPosition(pattern),
+                        //Spindexer.INSTANCE.setToFilledPosition(pattern),
                         Turret.INSTANCE.waitToShoot,
                         Transfer.INSTANCE.transferUp(),
                         Transfer.INSTANCE.transferDown()))
@@ -83,7 +90,7 @@ public class Robot extends SubsystemGroup {
     public Command shootAllSequence(){
         Command fullShootSequence = new SequentialGroup(
                 intakeOff(),
-                Turret.INSTANCE.on,
+                Turret.INSTANCE.setVelocity(turretVelocity),
                 runUntilEmpty(),
                 Turret.INSTANCE.off
         );
@@ -92,7 +99,7 @@ public class Robot extends SubsystemGroup {
     public Command shootMotifSequence(int pattern){
         Command fullShootSequence = new SequentialGroup(
                 intakeOff(),
-                Turret.INSTANCE.on,
+                Turret.INSTANCE.on(),
                 runMotif(pattern),
                 Turret.INSTANCE.off
         );

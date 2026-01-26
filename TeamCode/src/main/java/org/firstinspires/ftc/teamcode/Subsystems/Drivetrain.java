@@ -1,5 +1,7 @@
 package org.firstinspires.ftc.teamcode.Subsystems;
 
+import java.util.function.DoubleSupplier;
+
 import dev.nextftc.control.ControlSystem;
 import dev.nextftc.core.commands.Command;
 import dev.nextftc.core.subsystems.Subsystem;
@@ -15,7 +17,7 @@ import dev.nextftc.hardware.impl.MotorEx;
 public class Drivetrain implements Subsystem {
     public static final Drivetrain INSTANCE = new Drivetrain(); // Creates a singleton instance of the Drivetrain ensuring that all parts
     private Drivetrain(){}
-
+    private double turnSpeed = 1;
     private MotorEx frontLeftMotor = new MotorEx("fl").brakeMode();
     private MotorEx backLeftMotor = new MotorEx("bl").brakeMode();
     private MotorEx frontRightMotor = new MotorEx("fr").brakeMode().reversed();
@@ -31,8 +33,8 @@ public class Drivetrain implements Subsystem {
                     backRightMotor,
                     Gamepads.gamepad1().leftStickY().negate(),
                     Gamepads.gamepad1().leftStickX(),
-                    Gamepads.gamepad1().rightStickX()
-            );
+                    ()->(Gamepads.gamepad1().rightStickX().get() * turnSpeed)
+                    );
         }
 
     }
@@ -65,6 +67,14 @@ public class Drivetrain implements Subsystem {
         backLeftMotor.setPower((y - x + rx) / denominator);
         frontRightMotor.setPower((y - x - rx) / denominator);
         backRightMotor.setPower((y + x - rx) / denominator);
+    }
+
+    public void setTurnSpeed(double input){
+        turnSpeed = input;
+    }
+
+    public double getTurnSpeed() {
+        return turnSpeed;
     }
 
 

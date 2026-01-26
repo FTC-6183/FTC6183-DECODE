@@ -20,7 +20,6 @@ import org.firstinspires.ftc.teamcode.Subsystems.Pinpoint;
 import dev.nextftc.bindings.BindingManager;
 import dev.nextftc.core.components.BindingsComponent;
 import dev.nextftc.core.components.SubsystemComponent;
-import dev.nextftc.extensions.pedro.TurnBy;
 import dev.nextftc.ftc.Gamepads;
 import dev.nextftc.ftc.NextFTCOpMode;
 import dev.nextftc.ftc.components.BulkReadComponent;
@@ -75,7 +74,7 @@ public class TestShooter extends NextFTCOpMode {
     public void onUpdate(){
         Turret.INSTANCE.setHoodPosition(hoodPosition).schedule();
         Turret.INSTANCE.setVelocity(-velocity).schedule();
-        Turret.INSTANCE.followGoalOdometryPositional().schedule();
+        //Turret.INSTANCE.followGoalOdometryPositional().schedule();
         telemetry.addLine("Turret Tracking Odometry");
         telemetry.addData("x", Pinpoint.INSTANCE.getPosX());
         telemetry.addData("y", Pinpoint.INSTANCE.getPosY());
@@ -85,6 +84,8 @@ public class TestShooter extends NextFTCOpMode {
         telemetry.addData("Turret Angle Set", (Turret.INSTANCE.getTurretAngleSet()));
         telemetry.addData("Turret Power Set", (Turret.INSTANCE.getTurretPowerSet()));
         telemetry.addData("Turret One Position", Turret.INSTANCE.turretOnePosition());
+        telemetry.addData("Turret Two Position", Turret.INSTANCE.turretTwoPosition());
+
 
         //telemetry.addData("Turret Maximum Voltage",Turret.INSTANCE.getMaxVoltageFromEncoder());
         //telemetry.addData("Turret Current Voltage",Turret.INSTANCE.getVoltageFromEncoder());
@@ -118,7 +119,7 @@ public class TestShooter extends NextFTCOpMode {
         //telemetry.addData("Turret Power", Turret.INSTANCE.getTurretPower());
         telemetry.addData("Turret PID Correction Wrapped", Turret.INSTANCE.turretPIDCorrectionWrapped());
         telemetry.addData("Turret PID Correction Nonwrapped", Turret.INSTANCE.turretPIDCorrectionNonWrapped());
-        telemetry.addData("Shooter One Velocity", Turret.INSTANCE.getVelocityOne());
+        telemetry.addData("Shooter One Velocity", Turret.INSTANCE.getVelocity());
         telemetry.addData("Shooter Two Velocity", Turret.INSTANCE.getVelocityTwo());
         telemetry.addData("Set Velocity",velocity);
         telemetry.update();

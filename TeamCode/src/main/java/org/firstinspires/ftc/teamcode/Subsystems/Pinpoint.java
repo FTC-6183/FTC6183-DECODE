@@ -26,7 +26,6 @@ public class Pinpoint implements Subsystem {
     public void updatePosition(Pose2D position){
         pinpoint.setPosition(position);
     }
-
     public double getPosX(){
         return pinpoint.getPosX(DistanceUnit.INCH);
     }

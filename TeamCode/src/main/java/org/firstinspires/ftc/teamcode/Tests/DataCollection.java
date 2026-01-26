@@ -10,7 +10,6 @@ import com.bylazar.configurables.annotations.Configurable;
 import com.bylazar.telemetry.PanelsTelemetry;
 import com.bylazar.telemetry.TelemetryManager;
 import com.pedropathing.follower.Follower;
-import com.pedropathing.geometry.Pose;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
@@ -43,6 +42,10 @@ public class DataCollection extends NextFTCOpMode {
     public static Spindexer.Position position = POSITION_ONE;
     public static double hoodPosition = 0;
     public static double velocity = 0;
+    public static double offsetVelocity = 0;
+    public static double shootThreshold = 100;
+    public static int rumbleBlips = 5;
+
     public static String type = "";
     private Follower follower;
 
@@ -59,26 +62,23 @@ public class DataCollection extends NextFTCOpMode {
         TelemetryManager telemetryM = PanelsTelemetry.INSTANCE.getTelemetry();
         telemetry = new MultipleTelemetry(telemetry, FtcDashboard.getInstance().getTelemetry());
         Drivetrain.INSTANCE.startRobotDrive().schedule();
-        Pinpoint.INSTANCE.updatePosition(new Pose2D(DistanceUnit.INCH,8.5,8.75, AngleUnit.DEGREES,90));
+        Pinpoint.INSTANCE.updatePosition(new Pose2D(DistanceUnit.INCH, 8.5, 8.875, AngleUnit.DEGREES, 90));
+        //Pinpoint.INSTANCE.updatePosition(new Pose2D(DistanceUnit.INCH,72,72, AngleUnit.DEGREES,90));
         Gamepads.gamepad1().circle()
                 .toggleOnBecomesTrue()
                 .whenBecomesTrue(Intake.INSTANCE.on())
                 .whenBecomesFalse(Intake.INSTANCE.idle());
 
         Command transferFlick = new SequentialGroup(Transfer.INSTANCE.transferUp(),
-                new Delay(0.5 ),
+                new Delay(0.5),
                 Transfer.INSTANCE.transferDown(),
                 new InstantCommand(()->Spindexer.INSTANCE.setColor(Spindexer.INSTANCE.getPosition(), Spindexer.DetectedColor.EMPTY))
                 );
         Command intakeMode = new SequentialGroup(
-                new InstantCommand(()->Spindexer.INSTANCE.setPositionType(Spindexer.PositionType.INTAKE)),
-                new InstantCommand(()->velocity = 0)
-        );
+                new InstantCommand(()->Spindexer.INSTANCE.setPositionType(Spindexer.PositionType.INTAKE)));
 
         Command shootMode = new SequentialGroup(
-                new InstantCommand(()->Spindexer.INSTANCE.setPositionType(Spindexer.PositionType.SHOOT)),
-                new InstantCommand(()->velocity = -1100)
-        );
+                new InstantCommand(()->Spindexer.INSTANCE.setPositionType(Spindexer.PositionType.SHOOT)));
 
         Gamepads.gamepad1().cross()
                 .whenBecomesTrue(transferFlick);
@@ -87,6 +87,16 @@ public class DataCollection extends NextFTCOpMode {
                 .toggleOnBecomesFalse()
                 .whenBecomesTrue(intakeMode)
                 .whenBecomesFalse(shootMode);
+
+        Gamepads.gamepad1().square()
+                .whenBecomesTrue(()->Pinpoint.INSTANCE.updatePosition(new Pose2D(DistanceUnit.INCH, 8.5, 8.875, AngleUnit.DEGREES, 90)));
+
+        Gamepads.gamepad1().dpadLeft()
+                .toggleOnBecomesTrue()
+                .whenBecomesTrue(Intake.INSTANCE.reverse())
+                .whenBecomesFalse(Intake.INSTANCE.idle());
+
+
 
         Gamepads.gamepad1().leftBumper()
                 .whenBecomesTrue(Spindexer.Position::next);
@@ -99,18 +109,18 @@ public class DataCollection extends NextFTCOpMode {
     @Override
     public void onUpdate() {
         BindingManager.update();
-        Pose2D updatePose = Limelight.INSTANCE.relocalizeFromCameraRegular();
-        if(updatePose != null){
-            Pinpoint.INSTANCE.updatePosition(updatePose);
-        }
-
+        Turret.INSTANCE.followGoalOdometryPositional().schedule();
         Pinpoint.INSTANCE.periodic();
-
         telemetry.addData("x:", Pinpoint.INSTANCE.getPosX());
         telemetry.addData("y:", Pinpoint.INSTANCE.getPosY());
-        telemetry.addData("heading:", Pinpoint.INSTANCE.getHeading());
-
-        telemetry.addData("Shooter Velocity", Turret.INSTANCE.getVelocityTwo());
+        telemetry.addData("heading", Pinpoint.INSTANCE.getHeading());
+        telemetry.addData("360 Heading", (((Pinpoint.INSTANCE.getHeading() % 360) + 360) % 360));
+        telemetry.addData("Position of Turret", (Turret.INSTANCE.positionToAngle(Turret.INSTANCE.turretOnePosition())));
+        telemetry.addData("Turret One Position", Turret.INSTANCE.turretOnePosition());
+        telemetry.addData("Turret Two Position", Turret.INSTANCE.turretTwoPosition());
+        telemetry.addData("Turret Angle Set", (Turret.INSTANCE.getTurretAngleSet()));
+        telemetry.addData("Turret Power Set", (Turret.INSTANCE.getTurretPowerSet()));
+        telemetry.addData("Shooter Velocity", Turret.INSTANCE.getVelocity());
         telemetry.addData("Set Velocity", velocity);
         telemetry.addData("Distance From Blue Tag", Limelight.INSTANCE.distanceFromTag(Limelight.BLUE_GOAL_ID));
         telemetry.addData("Hood Position", hoodPosition);
@@ -122,7 +132,6 @@ public class DataCollection extends NextFTCOpMode {
         telemetry.addData("Nearest Free Position", Spindexer.INSTANCE.freePosition());
         telemetry.addData("Spindexer Position", Spindexer.INSTANCE.getPosition());
         telemetry.addData("Mode", Spindexer.INSTANCE.getPositionType());
-        //Turret.INSTANCE.followAprilTag().schedule();
         if(Spindexer.INSTANCE.freePosition()!=-1 && Spindexer.INSTANCE.getPositionType() == Spindexer.PositionType.INTAKE) {
             Spindexer.INSTANCE.setToPosition(Spindexer.Position.values()[Spindexer.INSTANCE.freePosition()]).schedule();
         }
@@ -130,21 +139,42 @@ public class DataCollection extends NextFTCOpMode {
             Spindexer.INSTANCE.setToPosition(Spindexer.INSTANCE.getPosition()).schedule();
         }
         /*
+        if(Spindexer.INSTANCE.getPositionType() == Spindexer.PositionType.INTAKE){
+            velocity = 500;
+        }
+        else if(Spindexer.INSTANCE.getPositionType() == Spindexer.PositionType.SHOOT){
+            velocity = Turret.INSTANCE.distanceToVelocity(Pinpoint.INSTANCE.getPosX(),Pinpoint.INSTANCE.getPosY()) + offsetVelocity;
+            if(Math.abs(velocity-Turret.INSTANCE.getVelocity())<shootThreshold){
+                gamepad1.rumbleBlips(rumbleBlips);
+            }
+        }
+
+         */
+        //hoodPosition = Turret.INSTANCE.distanceToPosition(Pinpoint.INSTANCE.getPosX(), Pinpoint.INSTANCE.getPosY()) + offsetVelocity;
+        Turret.INSTANCE.setVelocity(velocity).schedule();
+        Turret.INSTANCE.setHoodPosition(hoodPosition).schedule();
+        Turret.INSTANCE.periodic();
+        Spindexer.INSTANCE.periodic();
+        telemetry.update();
+        /*
+        telemetry.addData("Turret Positions", Turret.INSTANCE.headingToTurretPositionLL());
+        telemetry.addData("Turret Nonwrapped Angle", Turret.INSTANCE.getNonWrappedAngleFromEncoder());
+        telemetry.addData("Turret Wrapped Angle", Turret.INSTANCE.getWrappedAngleFromEncoder());
+
+        Pose2D updatePose = Limelight.INSTANCE.relocalizeFromCameraRegular();
+        if(updatePose != null){
+            Pinpoint.INSTANCE.updatePosition(updatePose);
+        }
+         */
+        //Turret.INSTANCE.followAprilTag().schedule();
+        /*
         if(Spindexer.INSTANCE.getPositionType() == Spindexer.PositionType.SHOOT){
             hoodPosition = Turret.INSTANCE.distanceToPosition();
             velocity = Turret.INSTANCE.distanceToVelocity();
 
         }
         */
-        Turret.INSTANCE.setVelocity(velocity).schedule();
-        Turret.INSTANCE.setHoodPosition(hoodPosition).schedule();
-        Turret.INSTANCE.periodic();
-        Spindexer.INSTANCE.periodic();
-        telemetry.addData("Turret Positions", Turret.INSTANCE.headingToTurretPositionLL());
-        telemetry.addData("Turret Nonwrapped Angle", Turret.INSTANCE.getNonWrappedAngleFromEncoder());
-        telemetry.addData("Turret Wrapped Angle", Turret.INSTANCE.getWrappedAngleFromEncoder());
         //telemetry.addData("Turret Power", Turret.INSTANCE.getTurretPower());
-        telemetry.update();
         //telemetry.addData("Spindexer 360 Angle", Spindexer.INSTANCE.getCurrentAngleFromEncoder());
         //telemetry.addData("Spindexer 180 Angle", Spindexer.INSTANCE.getAbsoluteAngleFromEncoder());
         //telemetry.addData("Spin Servo Power", Spindexer.INSTANCE.getPower());

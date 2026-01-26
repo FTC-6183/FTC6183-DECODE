@@ -1,7 +1,11 @@
 package org.firstinspires.ftc.teamcode.TeleOp;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
+import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
+import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
 import org.firstinspires.ftc.teamcode.Robot;
+import org.firstinspires.ftc.teamcode.Pinpoint;
 import org.firstinspires.ftc.teamcode.Utils.Aliance;
 
 import dev.nextftc.bindings.BindingManager;
@@ -14,9 +18,11 @@ import dev.nextftc.ftc.components.BulkReadComponent;
 @TeleOp(name = "Red TeleOp",group = "Red")
 public class RedTeleOp extends NextFTCOpMode {
     Robot robot = new Robot(Aliance.RED);
+    private double redStartX = 0;
+    private double redStartY = 0;
     public RedTeleOp(){
         addComponents(
-                new SubsystemComponent(robot),
+                new SubsystemComponent(robot, Pinpoint.INSTANCE),
                 BulkReadComponent.INSTANCE,
                 BindingsComponent.INSTANCE
         );
@@ -24,11 +30,14 @@ public class RedTeleOp extends NextFTCOpMode {
     @Override
     public void onStartButtonPressed(){
         robot.drive().schedule();
+        Pinpoint.INSTANCE.updatePosition(new Pose2D(DistanceUnit.INCH, redStartX, redStartY, AngleUnit.DEGREES, 90));
 
-        Gamepads.gamepad1().a()
+        Gamepads.gamepad1().circle()
                 .toggleOnBecomesTrue()
-                .whenBecomesTrue(robot.intakeOn())
+                .whenBecomesTrue(robot.intake())
                 .whenBecomesFalse(robot.intakeOff());
+
+
 
         Gamepads.gamepad1().x()
                 .whenBecomesTrue(robot.shootOneSequence());

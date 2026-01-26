@@ -22,9 +22,7 @@ import dev.nextftc.core.commands.Command;
 import dev.nextftc.core.commands.delays.WaitUntil;
 import dev.nextftc.core.subsystems.Subsystem;
 import dev.nextftc.ftc.ActiveOpMode;
-import dev.nextftc.hardware.controllable.RunToPosition;
 import dev.nextftc.hardware.controllable.RunToVelocity;
-import dev.nextftc.hardware.impl.CRServoEx;
 import dev.nextftc.hardware.impl.MotorEx;
 import dev.nextftc.hardware.impl.ServoEx;
 import dev.nextftc.hardware.positionable.SetPosition;
@@ -34,13 +32,14 @@ import dev.nextftc.hardware.powerable.SetPower;
 public class Turret implements Subsystem {
     private Aliance a;
     public static double angleGlobal = 0;
-    //public static double power = 0;
-    public double previousHood = 0.1;
-    public static double error = 0;
-    public static double staticPosition = 0;
+    public static double power = 1;
+    public double setpoint = 0;
 
+    public double previousHood = 0.1;
+    public static double angleOffset = 0;
+    public static double error = 0;
     public static double maxPower = 1;
-    public static PIDCoefficients shooterCoefficients = new PIDCoefficients(0.00001,0,0);
+    public static PIDCoefficients shooterCoefficients = new PIDCoefficients(0.00005,0,0);
     public static PIDCoefficients turretCoefficients = new PIDCoefficients(0.012,0,0);
 
     public static BasicFeedforwardParameters shooterff = new BasicFeedforwardParameters(0.00055, 0, 0.03);
@@ -57,13 +56,17 @@ public class Turret implements Subsystem {
         this.a = a;
     };
     private double lastAngle = 0;
+    private Interpolator shooter = new Interpolator();
+    private Interpolator hood = new Interpolator();
+
+
     private MotorEx shooterMotor1 = new MotorEx("shoot1").floatMode();
     private MotorEx shooterMotor2 = new MotorEx("shoot2").floatMode();
     private ServoEx hoodServo = new ServoEx("hood");
     //private CRServoEx turret1 = new CRServoEx("turret1");
     //private CRServoEx turret2 = new CRServoEx("turret2");
     private ServoEx turret1 = new ServoEx("turret1");
-    private ServoEx turret2 = new ServoEx("turret1");
+    private ServoEx turret2 = new ServoEx("turret2" );
 
 
     private AnalogInput encoder;
@@ -73,10 +76,14 @@ public class Turret implements Subsystem {
     public static final double MAX_CCW_SERVO = (double)(360/355) - 1 ;
 
     public static double threshold = 1;
-    public static double RED_GOAL_X = 129;
-    public static double RED_GOAL_Y = 129;
-    public static double BLUE_GOAL_X = 28;
-    public static double BLUE_GOAL_Y = 120;
+    //public static double RED_GOAL_X = 129;
+    //public static double RED_GOAL_Y = 129;
+    //public static double BLUE_GOAL_X = 28;
+    //public static double BLUE_GOAL_Y = 129;
+    public static double RED_GOAL_X = 144;
+    public static double RED_GOAL_Y = 144;
+    public static double BLUE_GOAL_X = 0;
+    public static double BLUE_GOAL_Y = 144;
 
     private ControlSystem velocityControl = ControlSystem.builder()
             .velPid(shooterCoefficients)
@@ -97,34 +104,47 @@ public class Turret implements Subsystem {
         //turret1.setPower(0);
         //turret2.setPower(0);
         encoder = ActiveOpMode.hardwareMap().get(AnalogInput.class,"encoderServo");
-        Interpolator shooter = new Interpolator();
-        Interpolator hood = new Interpolator();
-
+        shooter.addPoint(72.6291,72.2894,1100);
+        shooter.addPoint(57,82.67,1100);
+        shooter.addPoint(42,99,1000);
+        shooter.addPoint(34,109,900);
+        shooter.addPoint(71,86,1000);
+        shooter.addPoint(73,107,1000);
+        shooter.addPoint(79,126,1000);
+        shooter.addPoint(93,80,1100);
+        shooter.addPoint(100	,100,1200);
+        shooter.addPoint(112,112,1300);
+        shooter.addPoint(60	,109,1100);
+        shooter.addPoint(55	,130,1000);
+        shooter.addPoint(90	,110,1200);
+        shooter.addPoint(100,127,1200);
+        hood.addPoint(72.6291,72.2894,0.1);
+        hood.addPoint(57,82.67,0.1);
+        hood.addPoint(42,99,0.25);
+        hood.addPoint(34,109,0.4);
+        hood.addPoint(71,86,0.1);
+        hood.addPoint(73,107,0.1);
+        hood.addPoint(79,126,0.1);
+        hood.addPoint(93,80,0.1);
+        hood.addPoint(100,100,0.2);
+        hood.addPoint(112,112,0.1);
+        hood.addPoint(60,109,0.1);
+        hood.addPoint(55,130,0.2);
+        hood.addPoint(90,110,0.1);
+        hood.addPoint(100,127,0.1);
     }
     //TODO: Add the actual regression equation from testing
-    public double distanceToVelocity(){
-        double distance = 0;
-        if(a == Aliance.RED){
-            distance = Limelight.INSTANCE.distanceFromTag(Limelight.RED_GOAL_ID);
-        }
-        else if(a == Aliance.BLUE){
-            distance = Limelight.INSTANCE.distanceFromTag(Limelight.BLUE_GOAL_ID);
-        }
-        return distance*6.5118+867.97272;
+    public double distanceToVelocity(double x, double y){
+        return shooter.get(x,y);
     }
     public static double quartic_polynomial(double x, double a, double b, double c, double d, double e) {
         return (((a * x + b) * x + c) * x + d) * x + e;
     }
     //TODO: Add the actual hood angle/position from testing
-    public double distanceToPosition(){
-        double distance = Limelight.INSTANCE.distanceFromTag(Limelight.BLUE_GOAL_ID);
-        double currentHood = quartic_polynomial(distance,(-4.39 * Math.pow(10,-7)),0.0000535455,-0.00149178, -0.0154999,0.817171);
-        if(distance == 0){
-            return previousHood;
-        }
-        previousHood = currentHood;
-        return currentHood;
+    public double distanceToPosition(double x, double y){
+        return hood.get(x,y);
     }
+
     public double headingToTurretPositionLL(){
         double measuredAngle = lastAngle;
         if(a == Aliance.RED){
@@ -227,15 +247,13 @@ public class Turret implements Subsystem {
     public Command followGoalOdometryPositional(){
         double robotHeading = ((Pinpoint.INSTANCE.getHeading() % 360) + 360) % 360;
         double targetFieldAngle = headingToTurretPositionPinpoint();
-        double turretAngle = targetFieldAngle + 90 - robotHeading;
+        double turretAngle = targetFieldAngle + 90 - robotHeading + angleOffset;
         turretAngle = ((turretAngle % 360) + 360) % 360;
         turretAngleSet = turretAngle;
         double position = angleToPosition(turretAngle);
         position = Range.clip(position, 0, 1);
         turretPowerSet = position;
         return new SetPosition(turret1,position).and(new SetPosition(turret2,position));
-        //return new NullCommand();
-
     }
 
     public double getTurretAngleSet(){
@@ -282,6 +300,8 @@ public class Turret implements Subsystem {
         return  getNoOffsetAngleFromEncoder()-turretOffSet;
     }
 
+
+
 /*
     public Command followAprilTag(){
         return new SetPosition(turret1,angleToPosition(turretOnePosition()+headingToTurretPositionLL())).and(new SetPosition(turret2,angleToPosition(turretOnePosition()+headingToTurretPositionLL())));
@@ -297,6 +317,10 @@ public class Turret implements Subsystem {
     public Command setVelocity(double velocity){
         turretVelocity = velocity;
         return new RunToVelocity(velocityControl,velocity).requires(this);
+    }
+
+    public Command setTurretPosition(double position) {
+    return new SetPosition(turret1,position).and(new SetPosition(turret2,position));
     }
 
 /*
@@ -336,7 +360,7 @@ public class Turret implements Subsystem {
     //public final Command testServoOff = new SetPower(turret1,0);
 
 
-    public double getVelocityOne(){return shooterMotor1.getVelocity();}
+    public double getVelocity(){return shooterMotor1.getVelocity();}
     public double getVelocityTwo(){return shooterMotor2.getVelocity();}
 
 
@@ -348,24 +372,54 @@ public class Turret implements Subsystem {
         return turret2.getPosition();
     }
 
-    public double positionToAngle(double input){
-        return ((288 + input * 316.286) % 360);
-
+    public double angleToPosition(double angle) {
+        angle = Math.max(0, Math.min(360, angle));
+        /*
+        double zeroPosition = 0.21;
+        double ninetyPosition = 0.5;
+        double oneEightyPosition = 0.79;
+        */
+        double tickPerDegree = (0.35) / 90;
+        double zeroPosition = 0.83;
+        double ninetyPosition = 0.5;
+        double oneEightyPosition = 0.79;
+        if (angle <= positionToAngle(0)){
+            Drivetrain.INSTANCE.setTurnSpeed(1);
+            return 0.83 - (tickPerDegree * angle);
+        }
+        //The turret CANNOT reach the range of 204.827586207(1) to 254.482758621(0)
+        //This rounds to the nearest angle it can reach
+        else if(angle >= (positionToAngle(0)) && angle <= ((positionToAngle(0))+(positionToAngle(1) - positionToAngle(0))/2)){
+            Drivetrain.INSTANCE.setTurnSpeed(0.5);
+            return 0;
+        }
+        else if(angle <= positionToAngle(1)){
+            Drivetrain.INSTANCE.setTurnSpeed(0.5);
+            return 1;
+        }
+        Drivetrain.INSTANCE.setTurnSpeed(1);
+        return tickPerDegree * (angle - positionToAngle(1)) + 0.83;
+    }
+    public double positionToAngle(double position) {
+        double degreesPerTick = 90/(0.35);
+        return (degreesPerTick*(0.83-position)% 360 + 360) % 360;
     }
 
-    public double angleToPosition(double input){
-        if (input >= 288){
-            return ((input - 288) / 316.286);
-        }
-        else {
-            return ((input + 72) / 316.286);
-        }
-    }
 
     @Override
     public void periodic(){
-        shooterMotor1.setPower(velocityControl.calculate(shooterMotor1.getState()));
-        shooterMotor2.setPower(-velocityControl.calculate(shooterMotor1.getState()));
+        //shooterMotor1.setPower(velocityControl.calculate(shooterMotor2.getState()));
+        //shooterMotor2.setPower(-velocityControl.calculate(shooterMotor2.getState()));
+        if(turretVelocity < getVelocity()){
+            power = 0;
+        } else if (turretVelocity > getVelocity()) {
+            power = 1;
+        }
+        shooterMotor1.setPower(power);
+        shooterMotor2.setPower(-power);
+
+        //shooterMotor1.setPower(staticPosition);
+        //shooterMotor2.setPower(-staticPosition);
         /*
         double power = turretControl.calculate(new KineticState(getWrappedAngleFromEncoder()));
         if(Math.abs(power) > maxPower){
@@ -373,9 +427,7 @@ public class Turret implements Subsystem {
         }
         turret1.setPower(power);
         turret2.setPower(power);
-
          */
-
     }
     }
 

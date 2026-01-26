@@ -35,9 +35,9 @@ public class Spindexer implements Subsystem {
 
 
     public double spindexerOffset = 0;
-    public static double pValue = 0.006;
+    public static double pValue = 0.004;
     public static double dValue = 0.001;
-    public static double kE = 1.1;
+    public static double kE = 1;
     public static final Spindexer INSTANCE = new Spindexer();
 
     private Spindexer(){}

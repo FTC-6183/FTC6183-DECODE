@@ -6,6 +6,7 @@ import com.pedropathing.geometry.CoordinateSystem;
 import com.pedropathing.geometry.PedroCoordinates;
 import com.pedropathing.geometry.Pose;
 import com.pedropathing.math.Vector;
+import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.hardware.limelightvision.LLResultTypes;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
 
@@ -95,6 +96,7 @@ public class Limelight implements Subsystem {
         return -1;
     }
     //TODO: Implement Kalman Filter
+    /*
     public Pose relocalizeFromCameraPedro() {
         limelight.start();
         List<LLResultTypes.FiducialResult> r = limelight.getLatestResult().getFiducialResults();
@@ -162,6 +164,32 @@ public class Limelight implements Subsystem {
         }
         if(distanceFromTag(BLUE_GOAL_ID)>distanceFromTag(RED_GOAL_ID) && blueGoalPose == null) {
             return blueGoalPose;
+        }
+        return null;
+    }
+    */
+    //TODO: Implement Kalman Filter
+    public Pose2D relocalizeFromCamera(double turretHeadingField, double turretHeadingRobot){
+        // The Turret's Heading is relative to the field aka same coordinate system.
+        // So I will be able to
+        limelight.updateRobotOrientation(turretHeadingField);
+        LLResult result = limelight.getLatestResult();
+        Pose3D botPose3D = null;
+        Pose2D botPose2D = null;
+        double turretRadius = 0;
+        //Offset to center of turret
+        double xToTurretCenter= -1*turretRadius*Math.cos(Math.toRadians(turretHeadingRobot));
+        double yToTurretCenter = -1*turretRadius*Math.sin(Math.toRadians(turretHeadingRobot));
+        //Offset to center of robot
+        double xToRobotCenter = 0;
+        double yToRobotCenter = 0;
+        if (result != null && result.isValid()) {
+            botPose3D = result.getBotpose_MT2();
+            if (botPose3D != null) {
+                double botX = botPose3D.getPosition().x/DistanceUnit.mPerInch + xToTurretCenter + xToRobotCenter;
+                double botY = botPose3D.getPosition().y/DistanceUnit.mPerInch + yToTurretCenter + yToRobotCenter;
+                botPose2D = new Pose2D(DistanceUnit.INCH, botPose3D.getPosition().x/DistanceUnit.mPerInch + 72,botPose3D.getPosition().y/DistanceUnit.mPerInch + 72,AngleUnit.DEGREES, turretHeadingField);
+            }
         }
         return null;
     }

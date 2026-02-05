@@ -83,7 +83,7 @@ public class Limelight implements Subsystem {
         }
         return 0;
     }
-    public double patternFromObelisk(){
+    public int patternFromObelisk(){
         limelight.start();
         List<LLResultTypes.FiducialResult> r = limelight.getLatestResult().getFiducialResults();
         if(r.isEmpty()) return -1;

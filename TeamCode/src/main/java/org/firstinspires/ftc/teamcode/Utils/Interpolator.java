@@ -116,9 +116,6 @@ public class Interpolator {
         return lerp(ty, bottom, top);
     }
 
-    /**
-     * Find the nearest neighbor value
-     */
     private double nearestNeighbor(double x, double y) {
         DataPoint nearest = dataPoints.get(0);
         double minDist = nearest.distanceTo(x, y);
@@ -133,9 +130,7 @@ public class Interpolator {
 
         return nearest.value;
     }
-    /**
-     * Linear interpolation helper
-     */
+
     private double lerp(double t, double start, double end) {
         return start + t * (end - start);
     }

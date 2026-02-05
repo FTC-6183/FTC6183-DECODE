@@ -111,6 +111,8 @@ public class DataCollection extends NextFTCOpMode {
         BindingManager.update();
         Turret.INSTANCE.followGoalOdometryPositional().schedule();
         Pinpoint.INSTANCE.periodic();
+//        telemetry.addData("Left Color Sensor Hue", Spindexer.INSTANCE.getLeftColor());
+//        telemetry.addData("Right Color Sensor Hue", Spindexer.INSTANCE.getRightColor());
         telemetry.addData("x:", Pinpoint.INSTANCE.getPosX());
         telemetry.addData("y:", Pinpoint.INSTANCE.getPosY());
         telemetry.addData("heading", Pinpoint.INSTANCE.getHeading());
@@ -132,6 +134,7 @@ public class DataCollection extends NextFTCOpMode {
         telemetry.addData("Nearest Free Position", Spindexer.INSTANCE.freePosition());
         telemetry.addData("Spindexer Position", Spindexer.INSTANCE.getPosition());
         telemetry.addData("Mode", Spindexer.INSTANCE.getPositionType());
+
         if(Spindexer.INSTANCE.freePosition()!=-1 && Spindexer.INSTANCE.getPositionType() == Spindexer.PositionType.INTAKE) {
             Spindexer.INSTANCE.setToPosition(Spindexer.Position.values()[Spindexer.INSTANCE.freePosition()]).schedule();
         }

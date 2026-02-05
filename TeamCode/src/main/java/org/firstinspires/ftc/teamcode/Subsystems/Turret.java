@@ -3,7 +3,7 @@ package org.firstinspires.ftc.teamcode.Subsystems;
 
 import com.acmerobotics.dashboard.config.Config;
 import com.qualcomm.robotcore.hardware.AnalogInput;
-import com.qualcomm.robotcore.util.Range;
+import com.qualcomm.robotcore.hardware.DcMotor;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
@@ -20,11 +20,15 @@ import dev.nextftc.control.feedback.PIDCoefficients;
 import dev.nextftc.control.feedforward.BasicFeedforwardParameters;
 import dev.nextftc.core.commands.Command;
 import dev.nextftc.core.commands.delays.WaitUntil;
+import dev.nextftc.core.commands.utility.InstantCommand;
 import dev.nextftc.core.subsystems.Subsystem;
 import dev.nextftc.ftc.ActiveOpMode;
+import dev.nextftc.hardware.controllable.RunToPosition;
 import dev.nextftc.hardware.controllable.RunToVelocity;
+import dev.nextftc.hardware.impl.CRServoEx;
 import dev.nextftc.hardware.impl.MotorEx;
 import dev.nextftc.hardware.impl.ServoEx;
+import dev.nextftc.hardware.positionable.Positionable;
 import dev.nextftc.hardware.positionable.SetPosition;
 import dev.nextftc.hardware.powerable.SetPower;
 
@@ -38,9 +42,9 @@ public class Turret implements Subsystem {
     public double previousHood = 0.1;
     public static double angleOffset = 0;
     public static double error = 0;
-    public static double maxPower = 1;
+    public static double maxPower = 0.45;
     public static PIDCoefficients shooterCoefficients = new PIDCoefficients(0.00005,0,0);
-    public static PIDCoefficients turretCoefficients = new PIDCoefficients(0.012,0,0);
+    public static PIDCoefficients turretCoefficients = new PIDCoefficients(0.01,0,0.01);
 
     public static BasicFeedforwardParameters shooterff = new BasicFeedforwardParameters(0.00055, 0, 0.03);
 
@@ -63,13 +67,16 @@ public class Turret implements Subsystem {
     private MotorEx shooterMotor1 = new MotorEx("shoot1").floatMode();
     private MotorEx shooterMotor2 = new MotorEx("shoot2").floatMode();
     private ServoEx hoodServo = new ServoEx("hood");
-    //private CRServoEx turret1 = new CRServoEx("turret1");
-    //private CRServoEx turret2 = new CRServoEx("turret2");
-    private ServoEx turret1 = new ServoEx("turret1");
-    private ServoEx turret2 = new ServoEx("turret2" );
+    private MotorEx turretEncoder = new MotorEx("turretEncoder");
+
+    private CRServoEx turret1 = new CRServoEx("turret1");
+    private CRServoEx turret2 = new CRServoEx("turret2");
+
+    //private ServoEx turret1 = new ServoEx("turret1");
+    //private ServoEx turret2 = new ServoEx("turret2" );
 
 
-    private AnalogInput encoder;
+//    private AnalogInput encoder;
 
     public static final double ANGLE_TO_POSITION = (double) 1 /360;
     public static final int MAX_CW_SERVO = 1;
@@ -85,6 +92,10 @@ public class Turret implements Subsystem {
     public static double BLUE_GOAL_X = 0;
     public static double BLUE_GOAL_Y = 144;
 
+    private double cpr_turret_shaft = 8192;
+    private double turret_to_shaft = ((double) 10 /3);
+    private double turret_rotation_cpr = cpr_turret_shaft * turret_to_shaft;
+
     private ControlSystem velocityControl = ControlSystem.builder()
             .velPid(shooterCoefficients)
             .basicFF(shooterff)
@@ -99,11 +110,9 @@ public class Turret implements Subsystem {
     @Override public void initialize(){
         shooterMotor1.setPower(0);
         shooterMotor2.setPower(0);
-        turret1.setPosition(0.52);
-        turret2.setPosition(0.52);
-        //turret1.setPower(0);
-        //turret2.setPower(0);
-        encoder = ActiveOpMode.hardwareMap().get(AnalogInput.class,"encoderServo");
+        turret1.setPower(0);
+        turret2.setPower(0);
+//        encoder = ActiveOpMode.hardwareMap().get(AnalogInput.class,"encoderServo");
         shooter.addPoint(72.6291,72.2894,1100);
         shooter.addPoint(57,82.67,1100);
         shooter.addPoint(42,99,1000);
@@ -176,7 +185,7 @@ public class Turret implements Subsystem {
     /*
     public Command followGoalPPLL(){
         double goalX, goalY;
-        double limelight_distance = -1;
+       double limelight_distance = -1;
         if(a == Aliance.BLUE){
             limelight_distance = Limelight.INSTANCE.angleFromTag(Limelight.BLUE_GOAL_ID);
             goalX = BLUE_GOAL_X;
@@ -247,14 +256,19 @@ public class Turret implements Subsystem {
     public Command followGoalOdometryPositional(){
         double robotHeading = ((Pinpoint.INSTANCE.getHeading() % 360) + 360) % 360;
         double targetFieldAngle = headingToTurretPositionPinpoint();
-        double turretAngle = targetFieldAngle + 90 - robotHeading + angleOffset;
+        double turretAngle = targetFieldAngle + 90 - robotHeading;
         turretAngle = ((turretAngle % 360) + 360) % 360;
         turretAngleSet = turretAngle;
-        double position = angleToPosition(turretAngle);
-        position = Range.clip(position, 0, 1);
-        turretPowerSet = position;
-        return new SetPosition(turret1,position).and(new SetPosition(turret2,position));
+        return setToAngle(turretAngle);
     }
+    public Command keepConstantTurret(double angle){
+        double robotHeading = ((Pinpoint.INSTANCE.getHeading() % 360) + 360) % 360;
+        //double targetFieldAngle = headingToTurretPositionPinpoint();
+        double turretAngle = angle + 90 - robotHeading;
+        turretAngle = ((turretAngle % 360) + 360) % 360;
+        return setToAngle(turretAngle);
+    }
+
 
     public double getTurretAngleSet(){
         return turretAngleSet;
@@ -279,15 +293,15 @@ public class Turret implements Subsystem {
      */
 
     public double getNoOffsetAngleFromEncoder() {
-        if (encoder == null) return 0;
-        return (encoder.getVoltage() / 3.3) * 360;
+        //if (encoder == null) return 0;
+        return 0;//(encoder.getVoltage() / 3.3) * 360;
     }
 
     public double getMaxVoltageFromEncoder(){
-        return encoder.getMaxVoltage();
+        return 0;//encoder.getMaxVoltage();
     }
     public double getVoltageFromEncoder(){
-        return encoder.getVoltage();
+        return 0;//encoder.getVoltage();
     }
 
     public double getWrappedAngleFromEncoder(){
@@ -320,7 +334,7 @@ public class Turret implements Subsystem {
     }
 
     public Command setTurretPosition(double position) {
-    return new SetPosition(turret1,position).and(new SetPosition(turret2,position));
+    return new SetPosition((Positionable) turret1,position).and(new SetPosition((Positionable) turret2,position));
     }
 
 /*
@@ -365,45 +379,90 @@ public class Turret implements Subsystem {
 
 
     public double turretOnePosition(){
-        return turret1.getPosition();
+        //return turret1.getPosition();
+       return turret1.getPower();
     }
 
     public double turretTwoPosition(){
-        return turret2.getPosition();
+        //return turret2.getPosition();
+        return turret2.getPower();
     }
 
     public double angleToPosition(double angle) {
         angle = Math.max(0, Math.min(360, angle));
+        double tickPerDegree = (0.29) / 90;
         /*
-        double zeroPosition = 0.21;
-        double ninetyPosition = 0.5;
-        double oneEightyPosition = 0.79;
+        double zeroPosition = 0.2;
+        double ninetyPosition = 0.49;
+        double oneEightyPosition = 0.78;
         */
-        double tickPerDegree = (0.35) / 90;
+        /*
         double zeroPosition = 0.83;
         double ninetyPosition = 0.5;
         double oneEightyPosition = 0.79;
-        if (angle <= positionToAngle(0)){
+        */
+        if (angle <= positionToAngle(1)){
             Drivetrain.INSTANCE.setTurnSpeed(1);
-            return 0.83 - (tickPerDegree * angle);
+            return 0.2 + (tickPerDegree * angle);
         }
         //The turret CANNOT reach the range of 204.827586207(1) to 254.482758621(0)
         //This rounds to the nearest angle it can reach
-        else if(angle >= (positionToAngle(0)) && angle <= ((positionToAngle(0))+(positionToAngle(1) - positionToAngle(0))/2)){
-            Drivetrain.INSTANCE.setTurnSpeed(0.5);
-            return 0;
-        }
-        else if(angle <= positionToAngle(1)){
+        else if(angle >= (positionToAngle(1)) && angle <= ((positionToAngle(1))+(positionToAngle(0) - positionToAngle(1))/2)){
             Drivetrain.INSTANCE.setTurnSpeed(0.5);
             return 1;
         }
+        else if(angle <= positionToAngle(0)){
+            Drivetrain.INSTANCE.setTurnSpeed(0.5);
+            return 0;
+        }
         Drivetrain.INSTANCE.setTurnSpeed(1);
-        return tickPerDegree * (angle - positionToAngle(1)) + 0.83;
+        return tickPerDegree * (angle - positionToAngle(0));
     }
+
     public double positionToAngle(double position) {
-        double degreesPerTick = 90/(0.35);
-        return (degreesPerTick*(0.83-position)% 360 + 360) % 360;
+        double degreesPerTick = ((90)/(0.29));
+        double angle = (((degreesPerTick * position) - (0.2 * degreesPerTick)) % 360 + 360) % 360;
+        return angle;
     }
+
+
+    public double getTurretRelativePosition(){
+        return turretEncoder.getCurrentPosition();
+    }
+
+    public double getTurretAngle(){
+       double cprToAngle = (360)/(turret_rotation_cpr);
+       double currentAngle = turretEncoder.getCurrentPosition()%turret_rotation_cpr;
+       double angle = (((cprToAngle * currentAngle + 90) % 360)  + 360) % 360;
+       return angle;
+    }
+    public double getTurretRotations(){
+        double cprToAngle = (360)/(turret_rotation_cpr);
+        double angle = cprToAngle * turretEncoder.getCurrentPosition() + 90;
+        return angle;
+    }
+    public Command setToZero(){
+        return new InstantCommand(()->turretEncoder.getMotor().setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER));
+    }
+
+    public Command setToAngle(double angle){
+
+        double difference = angle - getTurretAngle();
+
+        if(difference > 180){
+            difference -= 360;
+        } else if(difference < -180){
+            difference += 360;
+        }
+
+        double newRotations = getTurretRotations() + difference;
+        if((Math.abs(newRotations)>359) || (newRotations < -180)){
+            double intermediateAngle = (angle + 181) % 360;
+            return new RunToPosition(turretControl, intermediateAngle);
+        }
+        return new RunToPosition(turretControl, angle);
+    }
+
 
 
     @Override
@@ -420,14 +479,13 @@ public class Turret implements Subsystem {
 
         //shooterMotor1.setPower(staticPosition);
         //shooterMotor2.setPower(-staticPosition);
-        /*
-        double power = turretControl.calculate(new KineticState(getWrappedAngleFromEncoder()));
+
+        double power = turretControl.calculate(new KineticState(getTurretAngle()));
         if(Math.abs(power) > maxPower){
             power = maxPower * Math.signum(power);
         }
         turret1.setPower(power);
         turret2.setPower(power);
-         */
     }
     }
 

@@ -18,10 +18,10 @@ public class Drivetrain implements Subsystem {
     public static final Drivetrain INSTANCE = new Drivetrain(); // Creates a singleton instance of the Drivetrain ensuring that all parts
     private Drivetrain(){}
     private double turnSpeed = 1;
-    private MotorEx frontLeftMotor = new MotorEx("fl").brakeMode();
+    private MotorEx frontLeftMotor = new MotorEx("fl").brakeMode().reversed();
     private MotorEx backLeftMotor = new MotorEx("bl").brakeMode();
     private MotorEx frontRightMotor = new MotorEx("fr").brakeMode().reversed();
-    private MotorEx backRightMotor = new MotorEx("br").brakeMode().reversed();
+    private MotorEx backRightMotor = new MotorEx("br").brakeMode();
     private IMUEx imu = new IMUEx("imu", Direction.RIGHT, Direction.UP).zeroed();
     
     public Command startRobotDrive() {
@@ -33,7 +33,7 @@ public class Drivetrain implements Subsystem {
                     backRightMotor,
                     Gamepads.gamepad1().leftStickY().negate(),
                     Gamepads.gamepad1().leftStickX(),
-                    ()->(Gamepads.gamepad1().rightStickX().get() * turnSpeed)
+                    Gamepads.gamepad1().rightStickX()
                     );
         }
 

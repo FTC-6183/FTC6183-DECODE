@@ -21,7 +21,7 @@ public class TestDrive extends NextFTCOpMode {
     }
     @Override
     public void onStartButtonPressed(){
-        Drivetrain.INSTANCE.startFieldDrive().schedule();
+        Drivetrain.INSTANCE.startRobotDrive().schedule();
     }
     @Override
     public void onUpdate(){

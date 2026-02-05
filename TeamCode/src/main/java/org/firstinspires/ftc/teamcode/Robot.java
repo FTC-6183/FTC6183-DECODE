@@ -10,9 +10,11 @@ import org.firstinspires.ftc.teamcode.Subsystems.Spindexer;
 import org.firstinspires.ftc.teamcode.Subsystems.Transfer;
 import org.firstinspires.ftc.teamcode.Subsystems.Turret;
 import org.firstinspires.ftc.teamcode.Utils.Aliance;
+import org.firstinspires.ftc.teamcode.Vision.Limelight;
 
 import dev.nextftc.core.commands.Command;
 import dev.nextftc.core.commands.conditionals.IfElseCommand;
+import dev.nextftc.core.commands.delays.Delay;
 import dev.nextftc.core.commands.delays.WaitUntil;
 import dev.nextftc.core.commands.groups.ParallelGroup;
 import dev.nextftc.core.commands.groups.SequentialGroup;
@@ -24,14 +26,15 @@ import dev.nextftc.core.subsystems.SubsystemGroup;
 
 public class Robot extends SubsystemGroup {
     public static Aliance aliance;
-    public static Limelight3A l;
+    public int pattern = -1;
     public Robot(Aliance a){
         super(
                 Drivetrain.INSTANCE,
                 Intake.INSTANCE,
                 Spindexer.INSTANCE,
                 Transfer.INSTANCE,
-                Turret.INSTANCE
+                Turret.INSTANCE,
+                Limelight.INSTANCE
         );
         aliance = a;
     }
@@ -48,11 +51,26 @@ public class Robot extends SubsystemGroup {
         return Intake.INSTANCE.on();
     }
     public Command intakeOff(){
-        Command intakeOff = new ParallelGroup(
-                Intake.INSTANCE.idle()
-                //Spindexer.INSTANCE.stop()
+        return Intake.INSTANCE.idle();
+    }
+
+    public Command transferFlick(){
+        return new SequentialGroup(Transfer.INSTANCE.transferUp(),
+                new Delay(0.5),
+                Transfer.INSTANCE.transferDown(),
+                new InstantCommand(()->Spindexer.INSTANCE.setColor(Spindexer.INSTANCE.getPosition(), Spindexer.DetectedColor.EMPTY))
         );
-        return intakeOff;
+    }
+
+    public Command intakeMode(){
+        return new SequentialGroup(
+                new InstantCommand(()->Spindexer.INSTANCE.setPositionType(Spindexer.PositionType.INTAKE)), Intake.INSTANCE.on());
+    }
+
+    public Command shootMode(){
+        return new SequentialGroup(
+                new InstantCommand(()->Spindexer.INSTANCE.setPositionType(Spindexer.PositionType.SHOOT)), Intake.INSTANCE.idle());
+
     }
     public Command shootOneSequence(){
         Command shootSequence = new SequentialGroup(
@@ -96,7 +114,7 @@ public class Robot extends SubsystemGroup {
         );
         return fullShootSequence;
     }
-    public Command shootMotifSequence(int pattern){
+    public Command shootMotifSequence(){
         Command fullShootSequence = new SequentialGroup(
                 intakeOff(),
                 Turret.INSTANCE.on(),
@@ -108,5 +126,10 @@ public class Robot extends SubsystemGroup {
     }
     public Command drive(){
        return Drivetrain.INSTANCE.startRobotDrive();
+    }
+
+    @Override
+    public void periodic(){
+        pattern = Limelight.INSTANCE.patternFromObelisk();
     }
 }

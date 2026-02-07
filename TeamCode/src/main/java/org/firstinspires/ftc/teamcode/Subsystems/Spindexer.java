@@ -15,14 +15,18 @@ import org.firstinspires.ftc.teamcode.SensorTest.SensorColor;
 import dev.nextftc.control.feedback.PIDCoefficients;
 import dev.nextftc.core.commands.Command;
 import dev.nextftc.core.commands.utility.InstantCommand;
+import dev.nextftc.core.commands.utility.NullCommand;
 import dev.nextftc.core.subsystems.Subsystem;
 import dev.nextftc.ftc.ActiveOpMode;
 import dev.nextftc.hardware.impl.CRServoEx;
+import dev.nextftc.hardware.impl.ServoEx;
+import dev.nextftc.hardware.positionable.SetPosition;
 
 @Config
 public class Spindexer implements Subsystem {
     public static PIDCoefficients spinCoefficients = new PIDCoefficients(0.001,0,0);
     private double power = 0;
+    public static double maxPower = 0.5;
     public static float plUpper = 250;
     public static float plLower = 210;
     public static float glUpper = 170;
@@ -36,7 +40,7 @@ public class Spindexer implements Subsystem {
 
 
     public double spindexerOffset = 0;
-    public static double pValue = 0.005;
+    public static double pValue = 0.006;
     public static double dValue = 0.001;
     public static double kE = 1;
     public static final Spindexer INSTANCE = new Spindexer();
@@ -46,6 +50,7 @@ public class Spindexer implements Subsystem {
     //Pin 0 detects Green
     //Pin 1 detects Purple
     private CRServoEx spinServo = new CRServoEx("spinServo");
+//    private ServoEx spinServo = new ServoEx("spinServo");
     private AnalogInput spinEncoder;
 
     NormalizedColorSensor leftColorSensor;
@@ -120,13 +125,13 @@ public class Spindexer implements Subsystem {
      */
     public static Position currentPosition = Position.POSITION_ONE;
     public static PositionType positionType = PositionType.SHOOT;
-    public static double intakeAngleOne = 67;//14;
-    public static double intakeAngleTwo = 191;//132;
-    public static double intakeAngleThree = 315;//254.7;
+    public static double intakeAngleOne = 78;//14;
+    public static double intakeAngleTwo = 195;//132;
+    public static double intakeAngleThree = 320;//254.7;
 
-    public static double shootAngleOne = 14;//67;
-    public static double shootAngleTwo = 132;//191;
-    public static double shootAngleThree = 254.7;//315;
+    public static double shootAngleOne = 16;//67;
+    public static double shootAngleTwo = 136;//191;
+    public static double shootAngleThree = 255;//315;
 
 
     public static double intakeAngles[] = new double[]{intakeAngleOne, intakeAngleTwo, intakeAngleThree};
@@ -213,6 +218,29 @@ public class Spindexer implements Subsystem {
         return ballAtPosition;
     }
 
+    public void checkSpindexerState(){
+        boolean allEmpty = true;
+        boolean allFull = true;
+        for(DetectedColor ball : ballAtPosition)
+        {
+            if (ball == DetectedColor.EMPTY) {
+                full = false;
+                allFull = false;
+            }
+
+            if (ball == DetectedColor.GREEN || ball == DetectedColor.PURPLE){
+                empty = false;
+                allEmpty = false;
+            }
+        }
+        if(allEmpty){
+            empty = true;
+        }
+        if(allFull){
+            full = true;
+        }
+    }
+
     public Position getPosition(){
         return currentPosition;
     }
@@ -232,6 +260,15 @@ public class Spindexer implements Subsystem {
         }
         return new InstantCommand(setAngle(intakeAngles[position.ordinal()]));
     }
+
+    public double getShootAngle(int index){
+        return shootAngles[index];
+    }
+
+    public double getIntakeAngle(int index){
+        return intakeAngles[index];
+    }
+
 
 
     public Command nextPosition(){
@@ -272,14 +309,6 @@ public class Spindexer implements Subsystem {
         ballAtPosition[currentPosition.ordinal()] = Color;
     }
 
-//    public double getLeftColor(){
-//        return leftColorSensor.getVoltage() / 3.3 * 360;
-//    }
-//    public double getRightColor(){
-//        return rightColorSensor.getVoltage() / 3.3 * 360;
-//    }
-
-    /*
     public int filledPosition(){
         int position = currentPosition.ordinal();
         for (int i = 0; i < ballAtPosition.length; i++) {
@@ -293,7 +322,7 @@ public class Spindexer implements Subsystem {
     }
     public Command setToFreePosition(){
         if(freePosition()!=-1){
-            return setToPosition(Position.values()[freePosition()],"Intake").requires(this);
+            return setToPosition(Spindexer.Position.values()[freePosition()]).requires(this);
         }
         else{
             full = true;
@@ -303,7 +332,7 @@ public class Spindexer implements Subsystem {
 
     public Command setToFilledPosition(){
         if(filledPosition()!=-1){
-            return setToPosition(Position.values()[filledPosition()],"Intake").requires(this);
+            return setToPosition(Spindexer.Position.values()[filledPosition()]).requires(this);
         }
         else{
             empty = true;
@@ -311,28 +340,38 @@ public class Spindexer implements Subsystem {
         return new NullCommand();
     }
 
-
-    public Command setToFilledPosition(int pattern){
-        return new InstantCommand(() -> {
-            colorPointer = (colorPointer + 1) % 3;
-            int[] color;
-            switch (pattern) {
-                case GPP:
-                    color = new int[]{GREEN, PURPLE, PURPLE};
-                case PGP:
-                    color = new int[]{PURPLE, GREEN, PURPLE};
-                case PPG:
-                    color = new int[]{PURPLE, PURPLE, GREEN};
-                default:
-                    color = new int[]{GREEN, GREEN, GREEN};
-            };
-            setToPosition(Position.values()[findColor(color[colorPointer])],"Intake").requires(this);
-        });
+    public boolean getEmpty(){
+        return empty;
     }
-    */
+    public boolean getFull(){
+        return full;
+    }
+
+
+//    public Command setToFilledPosition(int pattern){
+//        return new InstantCommand(() -> {
+//            colorPointer = (colorPointer + 1) % 3;
+//            int[] color;
+//            switch (pattern) {
+//                case GPP:
+//                    color = new DetectedColor[]{DetectedColor.GREEN, DetectedColor.PURPLE, DetectedColor.PURPLE};
+//                case PGP:
+//                    color = new DetectedColor[]{DetectedColor.PURPLE, DetectedColor.GREEN, DetectedColor.PURPLE};
+//                case PPG:
+//                    color = new DetectedColor[]{DetectedColor.PURPLE, DetectedColor.PURPLE, DetectedColor.GREEN};
+//                default:
+//                    color = new DetectedColor[]{DetectedColor.GREEN, DetectedColor.GREEN, DetectedColor.GREEN};
+//            };
+//            setToPosition(Position.values()[findColor(color[colorPointer])],"Intake").requires(this);
+//        });
+//    }
 
     @Override
     public void periodic() {
+        if(Math.abs(power) > maxPower) {
+            power = maxPower * Math.signum(power);
+        }
         spinServo.setPower(power);
+        checkSpindexerState();
     }
 }

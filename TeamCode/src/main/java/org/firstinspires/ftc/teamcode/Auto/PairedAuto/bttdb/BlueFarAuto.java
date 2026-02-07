@@ -7,38 +7,43 @@ import com.pedropathing.geometry.BezierLine;
 import com.pedropathing.geometry.Pose;
 import com.pedropathing.paths.Path;
 import com.pedropathing.paths.PathChain;
+import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 
-import org.firstinspires.ftc.teamcode.Pedro.Constants;
+import org.firstinspires.ftc.teamcode.NextFTCPatch.SequentialGroupFixed;
 import org.firstinspires.ftc.teamcode.Robot;
+import org.firstinspires.ftc.teamcode.Pedro.Constants;
 import org.firstinspires.ftc.teamcode.Subsystems.Pinpoint;
 import org.firstinspires.ftc.teamcode.Utils.Aliance;
 
+import dev.nextftc.core.commands.Command;
 import dev.nextftc.core.components.BindingsComponent;
 import dev.nextftc.core.components.SubsystemComponent;
+import dev.nextftc.extensions.pedro.FollowPath;
 import dev.nextftc.extensions.pedro.PedroComponent;
 import dev.nextftc.ftc.NextFTCOpMode;
 import dev.nextftc.ftc.components.BulkReadComponent;
 
+@Autonomous
 public class BlueFarAuto extends NextFTCOpMode{
     Robot robot = new Robot(Aliance.BLUE);
     public BlueFarAuto(){
         addComponents(
+                new PedroComponent(Constants::createFollower),
                 new SubsystemComponent(robot, Pinpoint.INSTANCE),
                 BulkReadComponent.INSTANCE,
-                BindingsComponent.INSTANCE,
-                new PedroComponent(Constants::createFollower)
+                BindingsComponent.INSTANCE
         );
     }
     private Path scorePreload;
-    private PathChain pickUpLastRow;
-    private PathChain returnOne;
-    private PathChain returnTwo;
-    private PathChain pickUpLoadingZoneOne;
-    private PathChain pickUpLoadingZoneTwo;
+    private Path pickUpLastRow;
+    private Path returnOne;
+    private Path returnTwo;
+    private Path pickUpLoadingZoneOne;
+    private Path pickUpLoadingZoneTwo;
 
 
     private Pose startPose = new Pose(56,8);
-    private Pose shootPose = new Pose();
+    private Pose shootPose = new Pose(72,72);
     private Pose lastrowPose = new Pose(14.122, 35.816);
     private Pose loadingZonePose = new Pose(5,8);
     private Pose loadingZonePose2 =  new Pose(5.551, 20.265);
@@ -47,59 +52,78 @@ public class BlueFarAuto extends NextFTCOpMode{
 
 
     public void buildPaths(){
-        scorePreload = new Path(new BezierLine(startPose,shootPose));
-        pickUpLastRow = follower().pathBuilder().addPath(
-                        new BezierCurve(
-                                startPose,
-                                new Pose(51.245, 40.959),
-                                lastrowPose
-                        )
-                ).setLinearHeadingInterpolation(Math.toRadians(90), Math.toRadians(180))
-                .build();
+//        scorePreload = new Path(new BezierLine(startPose,shootPose));
 
-        returnOne = follower().pathBuilder().addPath(
-                        new BezierLine(
-                                shootPose,
-                                startPose
-                        )
-                ).setConstantHeadingInterpolation(Math.toRadians(180))
-                .build();
+        pickUpLastRow = new Path(new BezierCurve(
+                startPose,
+                new Pose(51.245, 40.959),
+                lastrowPose
+        ));
 
-        pickUpLoadingZoneOne = follower().pathBuilder().addPath(
-                        new BezierLine(
-                                startPose,
-                                loadingZonePose
-                        )
-                ).setConstantHeadingInterpolation(Math.toRadians(180))
-                .build();
+        pickUpLastRow.setLinearHeadingInterpolation(Math.toRadians(90), Math.toRadians(180));
 
-        returnTwo = follower().pathBuilder().addPath(
-                        new BezierLine(
-                                loadingZonePose,
-                                startPose
-                        )
-                ).setConstantHeadingInterpolation(Math.toRadians(180))
-                .build();
+        returnOne = new Path(new BezierLine(
+                shootPose,
+                startPose
+        )
+        );
 
-        pickUpLoadingZoneTwo = follower().pathBuilder().addPath(
+        returnOne.setLinearHeadingInterpolation(Math.toRadians(180),Math.toRadians(90));
+
+        pickUpLoadingZoneOne = new Path(new BezierLine(
+                startPose,
+                loadingZonePose
+        )
+        );
+
+        pickUpLoadingZoneOne.setLinearHeadingInterpolation(Math.toRadians(90), Math.toRadians(180));
+
+        returnTwo = new Path(new BezierLine(
+                loadingZonePose,
+                startPose
+        )
+        );
+        returnTwo.setLinearHeadingInterpolation(Math.toRadians(180),Math.toRadians(90));
+        pickUpLoadingZoneTwo = new Path(
                         new BezierCurve(
                                 startPose,
                                 new Pose(31.276, 20.316),
                                 loadingZonePose2
                         )
-                ).setConstantHeadingInterpolation(Math.toRadians(180))
-                .build();
+                );
 
-        returnTwo = follower().pathBuilder().addPath(
-                        new BezierLine(
-                                loadingZonePose2,
-                                endPose)
-                ).setTangentHeadingInterpolation()
-                .build();
+        pickUpLoadingZoneTwo.setLinearHeadingInterpolation(Math.toRadians(90), Math.toRadians(180));
+
+        returnTwo = new Path(new BezierLine(
+                loadingZonePose2,
+                endPose)
+        );
+
+        returnTwo.setLinearHeadingInterpolation(Math.toRadians(180),Math.toRadians(90));
+    }
+
+    public Command buildAuto(){
+        return new SequentialGroupFixed(
+                new FollowPath(pickUpLastRow),
+                new FollowPath(returnOne),
+                new FollowPath(pickUpLoadingZoneOne),
+                new FollowPath(returnTwo)
+        );
     }
 
     @Override
     public void onStartButtonPressed(){
+        buildPaths();
+        follower().setStartingPose(new Pose(56,8,Math.toRadians(90)));
+        buildAuto().schedule();
 
+    }
+
+    @Override
+    public void onUpdate(){
+        telemetry.addData("X Position ", follower().getPose().getX());
+        telemetry.addData("Y Position ", follower().getPose().getY());
+        telemetry.addData("Get Pose", follower().getPose().getPose());
+        telemetry.update();
     }
 }

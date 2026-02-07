@@ -6,8 +6,8 @@ repositories {
 }
 
 dependencies {
-    implementation 'dev.nextftc:ftc:1.0.1'
-    implementation 'dev.nextftc:hardware:1.0.1'
+    implementation 'dev.nextftc:ftc:1.1.0-beta.3'
+    implementation 'dev.nextftc:hardware:1.1.0-beta.3'
     implementation 'org.firstinspires.ftc:Inspection:11.0.0'
     implementation 'org.firstinspires.ftc:Blocks:11.0.0'
     implementation 'org.firstinspires.ftc:RobotCore:11.0.0'

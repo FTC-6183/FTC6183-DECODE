@@ -15,6 +15,7 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
+import org.firstinspires.ftc.teamcode.NextFTCPatch.SequentialGroupFixed;
 import org.firstinspires.ftc.teamcode.Subsystems.Drivetrain;
 import org.firstinspires.ftc.teamcode.Subsystems.Intake;
 import org.firstinspires.ftc.teamcode.Subsystems.Pinpoint;
@@ -25,6 +26,7 @@ import org.firstinspires.ftc.teamcode.Vision.Limelight;
 
 import dev.nextftc.bindings.BindingManager;
 import dev.nextftc.core.commands.Command;
+import dev.nextftc.core.commands.conditionals.IfElseCommand;
 import dev.nextftc.core.commands.delays.Delay;
 import dev.nextftc.core.commands.groups.SequentialGroup;
 import dev.nextftc.core.commands.utility.InstantCommand;
@@ -39,6 +41,7 @@ import dev.nextftc.ftc.components.BulkReadComponent;
 @TeleOp(name = "DataCollection")
 public class DataCollection extends NextFTCOpMode {
     public static double spinAngle = 18.55;
+    public boolean shootcycle = false;
     public static Spindexer.Position position = POSITION_ONE;
     public static double hoodPosition = 0;
     public static double velocity = 0;
@@ -57,11 +60,55 @@ public class DataCollection extends NextFTCOpMode {
         );
     }
 
+    public Command setToPositionOne(){
+        return new InstantCommand(()->Spindexer.INSTANCE.setCurrentPosition(Spindexer.Position.POSITION_ONE));
+    }
+
+    public Command setToPositionTwo(){
+        return new InstantCommand(()->Spindexer.INSTANCE.setCurrentPosition(Spindexer.Position.POSITION_TWO));
+    }
+
+    public Command setToPositionThree(){
+        return new InstantCommand(()->Spindexer.INSTANCE.setCurrentPosition(Spindexer.Position.POSITION_THREE));
+    }
+
+    public Command shootThree(){
+        return new SequentialGroupFixed(
+                new InstantCommand(() -> shootcycle = true),
+                new InstantCommand(()->Spindexer.INSTANCE.setPositionType(Spindexer.PositionType.SHOOT)),
+                new Delay(0.5),
+                setToPositionOne(),
+                new Delay(0.5),
+                Transfer.INSTANCE.transferUp(),
+                new Delay(0.5),
+                Transfer.INSTANCE.transferDown(),
+                new InstantCommand(()->Spindexer.INSTANCE.setColor(Spindexer.INSTANCE.getPosition(), Spindexer.DetectedColor.EMPTY)),
+                setToPositionTwo(),
+                new Delay(0.5),
+                Transfer.INSTANCE.transferUp(),
+                new Delay(0.5),
+                Transfer.INSTANCE.transferDown(),
+                new InstantCommand(()->Spindexer.INSTANCE.setColor(Spindexer.INSTANCE.getPosition(), Spindexer.DetectedColor.EMPTY)),
+                setToPositionThree(),
+                new Delay(0.5),
+                Transfer.INSTANCE.transferUp(),
+                new Delay(0.5),
+                Transfer.INSTANCE.transferDown(),
+                new InstantCommand(()->Spindexer.INSTANCE.setColor(Spindexer.INSTANCE.getPosition(), Spindexer.DetectedColor.EMPTY)),
+                new Delay(0.2),
+                new InstantCommand(()->shootcycle = false)
+        );
+    }
+    public Command intakeMode = new IfElseCommand(()->!shootcycle, new InstantCommand( ()->Spindexer.INSTANCE.setPositionType(Spindexer.PositionType.INTAKE)));
+
+    public Command shootMode = new IfElseCommand(()->!shootcycle, new InstantCommand( ()->Spindexer.INSTANCE.setPositionType(Spindexer.PositionType.SHOOT)));
+
     @Override
     public void onStartButtonPressed() {
         TelemetryManager telemetryM = PanelsTelemetry.INSTANCE.getTelemetry();
         telemetry = new MultipleTelemetry(telemetry, FtcDashboard.getInstance().getTelemetry());
         Drivetrain.INSTANCE.startRobotDrive().schedule();
+        Turret.INSTANCE.setToZero().schedule();
         Pinpoint.INSTANCE.updatePosition(new Pose2D(DistanceUnit.INCH, 8.5, 8.875, AngleUnit.DEGREES, 90));
         //Pinpoint.INSTANCE.updatePosition(new Pose2D(DistanceUnit.INCH,72,72, AngleUnit.DEGREES,90));
         Gamepads.gamepad1().circle()
@@ -96,23 +143,25 @@ public class DataCollection extends NextFTCOpMode {
                 .whenBecomesTrue(Intake.INSTANCE.reverse())
                 .whenBecomesFalse(Intake.INSTANCE.idle());
 
-
-
         Gamepads.gamepad1().leftBumper()
                 .whenBecomesTrue(Spindexer.Position::next);
 
         Gamepads.gamepad1().rightBumper()
                 .whenBecomesTrue(Spindexer.Position::previous);
 
+        Gamepads.gamepad1().dpadUp()
+                .whenBecomesTrue(shootThree());
+
     }
 
     @Override
     public void onUpdate() {
         BindingManager.update();
-        Turret.INSTANCE.followGoalOdometryPositional().schedule();
         Pinpoint.INSTANCE.periodic();
 //        telemetry.addData("Left Color Sensor Hue", Spindexer.INSTANCE.getLeftColor());
 //        telemetry.addData("Right Color Sensor Hue", Spindexer.INSTANCE.getRightColor());
+        telemetry.addData("Limelight Target X Degree Difference", Limelight.INSTANCE.angleFromTag(Limelight.BLUE_GOAL_ID));
+        telemetry.addData("Turret Angle Set", Turret.INSTANCE.getTurretAngleSet());
         telemetry.addData("x:", Pinpoint.INSTANCE.getPosX());
         telemetry.addData("y:", Pinpoint.INSTANCE.getPosY());
         telemetry.addData("heading", Pinpoint.INSTANCE.getHeading());
@@ -134,26 +183,30 @@ public class DataCollection extends NextFTCOpMode {
         telemetry.addData("Nearest Free Position", Spindexer.INSTANCE.freePosition());
         telemetry.addData("Spindexer Position", Spindexer.INSTANCE.getPosition());
         telemetry.addData("Mode", Spindexer.INSTANCE.getPositionType());
+        telemetry.addData("Shoot Cycle ", shootcycle);
+        telemetry.addData("Empty ", Spindexer.INSTANCE.getEmpty());
+        telemetry.addData("Full ", Spindexer.INSTANCE.getFull());
 
-        if(Spindexer.INSTANCE.freePosition()!=-1 && Spindexer.INSTANCE.getPositionType() == Spindexer.PositionType.INTAKE) {
+        if(Spindexer.INSTANCE.freePosition()!=-1 && Spindexer.INSTANCE.getPositionType() == Spindexer.PositionType.INTAKE&& !shootcycle) {
             Spindexer.INSTANCE.setToPosition(Spindexer.Position.values()[Spindexer.INSTANCE.freePosition()]).schedule();
+        }
+        else if(Spindexer.INSTANCE.getPositionType() == Spindexer.PositionType.SHOOT && Spindexer.INSTANCE.filledPosition()!=-1&&!shootcycle ){
+            Spindexer.INSTANCE.setToPosition(Spindexer.Position.values()[Spindexer.INSTANCE.filledPosition()]).schedule();
         }
         else{
             Spindexer.INSTANCE.setToPosition(Spindexer.INSTANCE.getPosition()).schedule();
         }
-        /*
+
         if(Spindexer.INSTANCE.getPositionType() == Spindexer.PositionType.INTAKE){
             velocity = 500;
+            Turret.INSTANCE.setToAngle(90).schedule();
         }
         else if(Spindexer.INSTANCE.getPositionType() == Spindexer.PositionType.SHOOT){
-            velocity = Turret.INSTANCE.distanceToVelocity(Pinpoint.INSTANCE.getPosX(),Pinpoint.INSTANCE.getPosY()) + offsetVelocity;
-            if(Math.abs(velocity-Turret.INSTANCE.getVelocity())<shootThreshold){
-                gamepad1.rumbleBlips(rumbleBlips);
-            }
+            velocity = Turret.INSTANCE.distanceToVelocity(Pinpoint.INSTANCE.getPosX(),Pinpoint.INSTANCE.getPosY());
+            Turret.INSTANCE.followGoalOdometryPositionalLL2().schedule();
         }
 
-         */
-        //hoodPosition = Turret.INSTANCE.distanceToPosition(Pinpoint.INSTANCE.getPosX(), Pinpoint.INSTANCE.getPosY()) + offsetVelocity;
+        hoodPosition = Turret.INSTANCE.distanceToPosition(Pinpoint.INSTANCE.getPosX(), Pinpoint.INSTANCE.getPosY());
         Turret.INSTANCE.setVelocity(velocity).schedule();
         Turret.INSTANCE.setHoodPosition(hoodPosition).schedule();
         Turret.INSTANCE.periodic();

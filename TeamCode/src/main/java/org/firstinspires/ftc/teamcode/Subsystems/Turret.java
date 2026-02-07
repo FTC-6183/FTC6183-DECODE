@@ -2,7 +2,6 @@ package org.firstinspires.ftc.teamcode.Subsystems;
 
 
 import com.acmerobotics.dashboard.config.Config;
-import com.qualcomm.robotcore.hardware.AnalogInput;
 import com.qualcomm.robotcore.hardware.DcMotor;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
@@ -21,8 +20,8 @@ import dev.nextftc.control.feedforward.BasicFeedforwardParameters;
 import dev.nextftc.core.commands.Command;
 import dev.nextftc.core.commands.delays.WaitUntil;
 import dev.nextftc.core.commands.utility.InstantCommand;
+import dev.nextftc.core.commands.utility.NullCommand;
 import dev.nextftc.core.subsystems.Subsystem;
-import dev.nextftc.ftc.ActiveOpMode;
 import dev.nextftc.hardware.controllable.RunToPosition;
 import dev.nextftc.hardware.controllable.RunToVelocity;
 import dev.nextftc.hardware.impl.CRServoEx;
@@ -40,11 +39,15 @@ public class Turret implements Subsystem {
     public double setpoint = 0;
 
     public double previousHood = 0.1;
-    public static double angleOffset = 0;
+    public static double angleBuffer = 3;
+    private double angleOffset = 0;
+    private double currentGoal = -1;
     public static double error = 0;
     public static double maxPower = 0.45;
     public static PIDCoefficients shooterCoefficients = new PIDCoefficients(0.00005,0,0);
-    public static PIDCoefficients turretCoefficients = new PIDCoefficients(0.01,0,0.01);
+    public static PIDCoefficients turretCoefficientsOdometry = new PIDCoefficients(0.01,0,0.01);
+    public static PIDCoefficients turretCoefficientsLimelight = new PIDCoefficients(0.01,0,0.01);
+
 
     public static BasicFeedforwardParameters shooterff = new BasicFeedforwardParameters(0.00055, 0, 0.03);
 
@@ -82,7 +85,7 @@ public class Turret implements Subsystem {
     public static final int MAX_CW_SERVO = 1;
     public static final double MAX_CCW_SERVO = (double)(360/355) - 1 ;
 
-    public static double threshold = 1;
+    public static double threshold = 30;
     //public static double RED_GOAL_X = 129;
     //public static double RED_GOAL_Y = 129;
     //public static double BLUE_GOAL_X = 28;
@@ -90,7 +93,7 @@ public class Turret implements Subsystem {
     public static double RED_GOAL_X = 144;
     public static double RED_GOAL_Y = 144;
     public static double BLUE_GOAL_X = 0;
-    public static double BLUE_GOAL_Y = 144;
+    public static double BLUE_GOAL_Y = 142;
 
     private double cpr_turret_shaft = 8192;
     private double turret_to_shaft = ((double) 10 /3);
@@ -103,9 +106,15 @@ public class Turret implements Subsystem {
 
     private ControlSystem turretControl = ControlSystem.builder()
             .angular(AngleType.DEGREES,
-                     feedback -> feedback.posPid(turretCoefficients)
+                     feedback -> feedback.posPid(turretCoefficientsOdometry)
             )
              .build();
+
+    private ControlSystem turretControlLimelight = ControlSystem.builder()
+            .angular(AngleType.DEGREES,
+                    feedback -> feedback.posPid(turretCoefficientsLimelight)
+            )
+            .build();
 
     @Override public void initialize(){
         shooterMotor1.setPower(0);
@@ -116,31 +125,38 @@ public class Turret implements Subsystem {
         shooter.addPoint(72.6291,72.2894,1100);
         shooter.addPoint(57,82.67,1100);
         shooter.addPoint(42,99,1000);
-        shooter.addPoint(34,109,900);
-        shooter.addPoint(71,86,1000);
-        shooter.addPoint(73,107,1000);
-        shooter.addPoint(79,126,1000);
-        shooter.addPoint(93,80,1100);
-        shooter.addPoint(100	,100,1200);
-        shooter.addPoint(112,112,1300);
-        shooter.addPoint(60	,109,1100);
-        shooter.addPoint(55	,130,1000);
-        shooter.addPoint(90	,110,1200);
-        shooter.addPoint(100,127,1200);
+        shooter.addPoint(23,118,900);
+        shooter.addPoint(34,110,900);
+        shooter.addPoint(73,90,1050);
+        shooter.addPoint(72,108,1050);
+        shooter.addPoint(72,129,1050);
+        shooter.addPoint(55,102,1050);
+        shooter.addPoint(56,128,1050);
+        shooter.addPoint(87,87,1100);
+        shooter.addPoint(91,99,1200);
+        shooter.addPoint(108,127,1250);
+        shooter.addPoint(70,95,1100);
+        shooter.addPoint(80,120,1000);
+        shooter.addPoint(87,97,1100);
+        shooter.addPoint(92,130,1100);
+
         hood.addPoint(72.6291,72.2894,0.1);
-        hood.addPoint(57,82.67,0.1);
-        hood.addPoint(42,99,0.25);
-        hood.addPoint(34,109,0.4);
-        hood.addPoint(71,86,0.1);
-        hood.addPoint(73,107,0.1);
-        hood.addPoint(79,126,0.1);
-        hood.addPoint(93,80,0.1);
-        hood.addPoint(100,100,0.2);
-        hood.addPoint(112,112,0.1);
-        hood.addPoint(60,109,0.1);
-        hood.addPoint(55,130,0.2);
-        hood.addPoint(90,110,0.1);
-        hood.addPoint(100,127,0.1);
+        hood.addPoint(57,82.67,0.05);
+        hood.addPoint(42,99,0.1);
+        hood.addPoint(23,118,0.35);
+        hood.addPoint(34,110,0.35);
+        hood.addPoint(73,90,0.2);
+        hood.addPoint(72,108,0.2);
+        hood.addPoint(72,129,0.1);
+        hood.addPoint(55,102,0.05);
+        hood.addPoint(56,128,0.1);
+        hood.addPoint(87,87,0.1);
+        hood.addPoint(91,99,0.1);
+        hood.addPoint(108,127,0.1);
+        hood.addPoint(70,95,0.1);
+        hood.addPoint(80,120,0.05);
+        hood.addPoint(87,97,0.1);
+        hood.addPoint(92,130,0.1);
     }
     //TODO: Add the actual regression equation from testing
     public double distanceToVelocity(double x, double y){
@@ -154,19 +170,29 @@ public class Turret implements Subsystem {
         return hood.get(x,y);
     }
 
-    public double headingToTurretPositionLL(){
-        double measuredAngle = lastAngle;
+//    public double headingToTurretPositionLL(){
+//        double measuredAngle = lastAngle;
+//        if(a == Aliance.RED){
+//            measuredAngle = Limelight.INSTANCE.angleFromTag(Limelight.RED_GOAL_ID);
+//        }
+//        else if(a == Aliance.BLUE){
+//            measuredAngle = Limelight.INSTANCE.angleFromTag(Limelight.BLUE_GOAL_ID);
+//        }
+//
+//        if (measuredAngle != -1) {
+//            lastAngle = measuredAngle;
+//        }
+//        return lastAngle;
+//    }
+public double headingToTurretPositionLL(){
+        double measuredAngle = -1;
         if(a == Aliance.RED){
             measuredAngle = Limelight.INSTANCE.angleFromTag(Limelight.RED_GOAL_ID);
         }
         else if(a == Aliance.BLUE){
             measuredAngle = Limelight.INSTANCE.angleFromTag(Limelight.BLUE_GOAL_ID);
         }
-
-        if (measuredAngle != -1) {
-            lastAngle = measuredAngle;
-        }
-        return lastAngle;
+        return measuredAngle;
     }
     public double headingToTurretPositionPinpoint(){
         // Get your robot's current position from odometry
@@ -259,7 +285,41 @@ public class Turret implements Subsystem {
         double turretAngle = targetFieldAngle + 90 - robotHeading;
         turretAngle = ((turretAngle % 360) + 360) % 360;
         turretAngleSet = turretAngle;
-        return setToAngle(turretAngle);
+        return setToAngle(currentGoal);
+    }
+
+    public Command followGoalOdometryPositionalLL1(){
+        double robotHeading = ((Pinpoint.INSTANCE.getHeading() % 360) + 360) % 360;
+        double targetFieldAngle = headingToTurretPositionPinpoint();
+        double turretAngle = targetFieldAngle + 90 - robotHeading;
+        if(headingToTurretPositionLL()!=-1 && (currentGoal == -1 || Math.abs(getTurretAngle()-currentGoal) < angleBuffer)) {
+            angleOffset = headingToTurretPositionLL();
+            turretAngle -= angleOffset;
+            currentGoal = turretAngle;
+        } else if (headingToTurretPositionLL() == -1){
+            currentGoal = turretAngle;
+        }
+        //turretAngle = ((turretAngle % 360) + 360) % 360;
+        currentGoal = ((currentGoal % 360) + 360) % 360;
+        turretAngleSet = currentGoal;
+        return setToAngle(currentGoal);
+    }
+    public Command followGoalOdometryPositionalLL2(){
+        double robotHeading = ((Pinpoint.INSTANCE.getHeading() % 360) + 360) % 360;
+        double targetFieldAngle = headingToTurretPositionPinpoint();
+        double turretAngle = targetFieldAngle + 90 - robotHeading;
+        if(headingToTurretPositionLL()!=-1 && (currentGoal == -1 || Math.abs(getTurretAngle()-currentGoal) < angleBuffer)) {
+            turretAngle = getTurretAngle() - headingToTurretPositionLL();
+//            angleOffset = headingToTurretPositionLL();
+            currentGoal = turretAngle;
+            turretAngleSet = turretAngle;
+            return setToAngleLimelight(turretAngle);
+        } else if (headingToTurretPositionLL() == -1) {
+            turretAngleSet = turretAngle;
+            currentGoal = turretAngle;
+            return setToAngle(turretAngle);
+        }
+        return new NullCommand();
     }
     public Command keepConstantTurret(double angle){
         double robotHeading = ((Pinpoint.INSTANCE.getHeading() % 360) + 360) % 360;
@@ -366,10 +426,12 @@ public class Turret implements Subsystem {
     public final Command testOnOneWay = new SetPower(shooterMotor1,1).and(new SetPower(shooterMotor2,-1));
     public final Command testOtherWay = new SetPower(shooterMotor1,-1).and(new SetPower(shooterMotor2,1));
     public final Command testOff = new SetPower(shooterMotor1,0).and(new SetPower(shooterMotor2,0));
-    public Command waitToShoot= new WaitUntil(() ->
-            Math.abs(Turret.INSTANCE.getVelocityTwo() - turretVelocity)
-                    < Turret.threshold
-    );
+    public Command waitToShoot(){
+        return new WaitUntil(() ->
+                Math.abs(Turret.INSTANCE.getVelocity() - turretVelocity)
+                        < Turret.threshold
+        );
+    }
     //public final Command testServoOn = new SetPower(turret1,0.5);
     //public final Command testServoOff = new SetPower(turret1,0);
 
@@ -462,6 +524,25 @@ public class Turret implements Subsystem {
         }
         return new RunToPosition(turretControl, angle);
     }
+
+    public Command setToAngleLimelight(double angle){
+
+        double difference = angle - getTurretAngle();
+
+        if(difference > 180){
+            difference -= 360;
+        } else if(difference < -180){
+            difference += 360;
+        }
+
+        double newRotations = getTurretRotations() + difference;
+        if((Math.abs(newRotations)>359) || (newRotations < -180)){
+            double intermediateAngle = (angle + 181) % 360;
+            return new RunToPosition(turretControlLimelight, intermediateAngle);
+        }
+        return new RunToPosition(turretControlLimelight, angle);
+    }
+
 
 
 

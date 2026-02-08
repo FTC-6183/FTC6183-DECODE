@@ -111,7 +111,7 @@ public class TestShooter extends NextFTCOpMode {
         //telemetry.addData("Turret Positions", Turret.INSTANCE.servoPosition());
         telemetry.addData("Hood Position", hoodPosition);
         telemetry.addData("Turret Positions", Turret.INSTANCE.headingToTurretPositionLL());
-        telemetry.addData("Turret Position Odometry", Turret.INSTANCE.headingToTurretPositionPinpoint());
+        //telemetry.addData("Turret Position Odometry", Turret.INSTANCE.headingToTurretPositionPinpoint());
         telemetry.addData("Current Error", Turret.INSTANCE.getError());
         telemetry.addData("Turret Nonwrapped Angle", Turret.INSTANCE.getNonWrappedAngleFromEncoder());
         telemetry.addData("Turret Wrapped Angle", Turret.INSTANCE.getWrappedAngleFromEncoder());

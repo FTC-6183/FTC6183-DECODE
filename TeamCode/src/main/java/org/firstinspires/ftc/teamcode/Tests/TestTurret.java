@@ -68,7 +68,7 @@ public class TestTurret extends NextFTCOpMode {
         //Turret.INSTANCE.setVelocity(0).schedule();
         //Turret.INSTANCE.setToAngle(turretAngle).schedule();
         //Turret.INSTANCE.keepConstantTurret(turretAngle).schedule();
-        Turret.INSTANCE.followGoalOdometryPositional().schedule();
+        //Turret.INSTANCE.followGoalOdometryPositional().schedule();
         Turret.INSTANCE.periodic();
         Pinpoint.INSTANCE.periodic();
         //Turret.INSTANCE.periodic();

@@ -224,7 +224,7 @@ public class BlueCloseTwelveBallAuto extends NextFTCOpMode {
         telemetry.update();
         if(Spindexer.INSTANCE.freePosition()!=-1 && Spindexer.INSTANCE.getPositionType() == Spindexer.PositionType.INTAKE && !shootcycle) {
             Spindexer.INSTANCE.setToPosition(Spindexer.Position.values()[Spindexer.INSTANCE.freePosition()]).schedule();
-            Turret.INSTANCE.followGoalOdometryPositionalLL2().schedule();
+            Turret.INSTANCE.followGoalOdometryPositional(Aliance.BLUE).schedule();
         }
 //        else if(Spindexer.INSTANCE.getPositionType() == Spindexer.PositionType.SHOOT && Spindexer.INSTANCE.filledPosition()!=-1 && !shootcycle ){
 //            Spindexer.INSTANCE.setToPosition(Spindexer.Position.values()[Spindexer.INSTANCE.filledPosition()]).schedule();

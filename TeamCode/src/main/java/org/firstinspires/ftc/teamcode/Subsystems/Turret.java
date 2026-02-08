@@ -4,6 +4,7 @@ package org.firstinspires.ftc.teamcode.Subsystems;
 import com.acmerobotics.dashboard.config.Config;
 import com.qualcomm.robotcore.hardware.DcMotor;
 
+import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
@@ -194,18 +195,26 @@ public double headingToTurretPositionLL(){
         }
         return measuredAngle;
     }
-    public double headingToTurretPositionPinpoint(){
+    public double headingToTurretPositionPinpoint(Aliance aliance){
         // Get your robot's current position from odometry
         Pose2D robotPose = new Pose2D(DistanceUnit.INCH, Pinpoint.INSTANCE.getPosX(), Pinpoint.INSTANCE.getPosY(), AngleUnit.DEGREES, Pinpoint.INSTANCE.getHeading());
-        double goalX = BLUE_GOAL_X;
-        double goalY = BLUE_GOAL_Y;
 
+        double goalX = 0;
+        double goalY = 0;
+
+        if(aliance == Aliance.BLUE){
+             goalX = BLUE_GOAL_X;
+             goalY = BLUE_GOAL_Y;
+        }
+        else if(aliance == Aliance.RED){
+             goalX = RED_GOAL_X;
+             goalY = RED_GOAL_Y;
+        }
         double deltaX = goalX - robotPose.getX(DistanceUnit.INCH);
         double deltaY = goalY - robotPose.getY(DistanceUnit.INCH);
 
         double angleToGoal = Math.atan2(deltaY, deltaX);
         angleToGoal = Math.toDegrees(angleToGoal);
-        //angleToGoal = (angleToGoal + 360) % 360;
         return angleToGoal;
     }
     /*
@@ -279,48 +288,58 @@ public double headingToTurretPositionLL(){
 
   }
 */
-    public Command followGoalOdometryPositional(){
+    public Command followGoalOdometryPositional(Aliance aliance){
         double robotHeading = ((Pinpoint.INSTANCE.getHeading() % 360) + 360) % 360;
-        double targetFieldAngle = headingToTurretPositionPinpoint();
-        double turretAngle = targetFieldAngle + 90 - robotHeading;
+        double targetFieldAngle = headingToTurretPositionPinpoint(aliance);
+        double turretAngle = targetFieldAngle + 90  - robotHeading + angleOffset;
         turretAngle = ((turretAngle % 360) + 360) % 360;
-        turretAngleSet = turretAngle;
+        currentGoal = turretAngle;
         return setToAngle(currentGoal);
+    }
+//
+//    public Command followGoalOdometryPositionalLL1(){
+//        double robotHeading = ((Pinpoint.INSTANCE.getHeading() % 360) + 360) % 360;
+//        double targetFieldAngle = headingToTurretPositionPinpoint(aliance);
+//        double turretAngle = targetFieldAngle + 90 - robotHeading;
+//        if(headingToTurretPositionLL()!=-1 && (currentGoal == -1 || Math.abs(getTurretAngle()-currentGoal) < angleBuffer)) {
+//            angleOffset = headingToTurretPositionLL();
+//            turretAngle -= angleOffset;
+//            currentGoal = turretAngle;
+//        } else if (headingToTurretPositionLL() == -1){
+//            currentGoal = turretAngle;
+//        }
+//        //turretAngle = ((turretAngle % 360) + 360) % 360;
+//        currentGoal = ((currentGoal % 360) + 360) % 360;
+//        turretAngleSet = currentGoal;
+//        return setToAngle(currentGoal);
+//    }
+//    public Command followGoalOdometryPositionalLL2(){
+//        double robotHeading = ((Pinpoint.INSTANCE.getHeading() % 360) + 360) % 360;
+//        double targetFieldAngle = headingToTurretPositionPinpoint(aliance);
+//        double turretAngle = targetFieldAngle + 90 - robotHeading + angleOffset;
+//        if(headingToTurretPositionLL()!=-1 && (currentGoal == -1 || Math.abs(getTurretAngle()-currentGoal) < angleBuffer)) {
+//            turretAngle = getTurretAngle() - headingToTurretPositionLL() + angleOffset;
+////            angleOffset = headingToTurretPositionLL();
+//            currentGoal = turretAngle;
+//            turretAngleSet = turretAngle;
+//            return setToAngleLimelight(currentGoal);
+//        } else if (headingToTurretPositionLL() == -1) {
+//            turretAngleSet = turretAngle;
+//            currentGoal = turretAngle;
+//            return setToAngle(currentGoal);
+//        }
+//        return new NullCommand();
+//    }
+
+    public void updateAngleOffset(double angleDifference){
+        angleOffset += angleDifference;
     }
 
-    public Command followGoalOdometryPositionalLL1(){
-        double robotHeading = ((Pinpoint.INSTANCE.getHeading() % 360) + 360) % 360;
-        double targetFieldAngle = headingToTurretPositionPinpoint();
-        double turretAngle = targetFieldAngle + 90 - robotHeading;
-        if(headingToTurretPositionLL()!=-1 && (currentGoal == -1 || Math.abs(getTurretAngle()-currentGoal) < angleBuffer)) {
-            angleOffset = headingToTurretPositionLL();
-            turretAngle -= angleOffset;
-            currentGoal = turretAngle;
-        } else if (headingToTurretPositionLL() == -1){
-            currentGoal = turretAngle;
-        }
-        //turretAngle = ((turretAngle % 360) + 360) % 360;
-        currentGoal = ((currentGoal % 360) + 360) % 360;
-        turretAngleSet = currentGoal;
-        return setToAngle(currentGoal);
+    public void zeroAngleOffset(){
+        angleOffset = 0;
     }
-    public Command followGoalOdometryPositionalLL2(){
-        double robotHeading = ((Pinpoint.INSTANCE.getHeading() % 360) + 360) % 360;
-        double targetFieldAngle = headingToTurretPositionPinpoint();
-        double turretAngle = targetFieldAngle + 90 - robotHeading;
-        if(headingToTurretPositionLL()!=-1 && (currentGoal == -1 || Math.abs(getTurretAngle()-currentGoal) < angleBuffer)) {
-            turretAngle = getTurretAngle() - headingToTurretPositionLL();
-//            angleOffset = headingToTurretPositionLL();
-            currentGoal = turretAngle;
-            turretAngleSet = turretAngle;
-            return setToAngleLimelight(turretAngle);
-        } else if (headingToTurretPositionLL() == -1) {
-            turretAngleSet = turretAngle;
-            currentGoal = turretAngle;
-            return setToAngle(turretAngle);
-        }
-        return new NullCommand();
-    }
+
+
     public Command keepConstantTurret(double angle){
         double robotHeading = ((Pinpoint.INSTANCE.getHeading() % 360) + 360) % 360;
         //double targetFieldAngle = headingToTurretPositionPinpoint();
@@ -567,6 +586,10 @@ public double headingToTurretPositionLL(){
         }
         turret1.setPower(power);
         turret2.setPower(power);
+    }
+
+    public void status(Telemetry telemetry){
+        telemetry.addData("Turret Velocity", getVelocity());
     }
     }
 

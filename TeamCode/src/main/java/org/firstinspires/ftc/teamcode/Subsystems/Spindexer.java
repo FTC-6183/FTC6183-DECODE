@@ -10,6 +10,7 @@ import com.qualcomm.robotcore.hardware.DigitalChannel;
 import com.qualcomm.robotcore.hardware.NormalizedColorSensor;
 import com.qualcomm.robotcore.hardware.NormalizedRGBA;
 
+import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.teamcode.SensorTest.SensorColor;
 
 import dev.nextftc.control.feedback.PIDCoefficients;
@@ -26,7 +27,7 @@ import dev.nextftc.hardware.positionable.SetPosition;
 public class Spindexer implements Subsystem {
     public static PIDCoefficients spinCoefficients = new PIDCoefficients(0.001,0,0);
     private double power = 0;
-    public static double maxPower = 0.5;
+    public static double maxPower = 0.3;
     public static float plUpper = 250;
     public static float plLower = 210;
     public static float glUpper = 170;
@@ -40,7 +41,7 @@ public class Spindexer implements Subsystem {
 
 
     public double spindexerOffset = 0;
-    public static double pValue = 0.006;
+    public static double pValue = 0.004;
     public static double dValue = 0.001;
     public static double kE = 1;
     public static final Spindexer INSTANCE = new Spindexer();
@@ -374,4 +375,13 @@ public class Spindexer implements Subsystem {
         spinServo.setPower(power);
         checkSpindexerState();
     }
+
+    public void status(Telemetry telemetry){
+        telemetry.addData("Current Color", Spindexer.INSTANCE.readCurrentColor());
+        telemetry.addData("Ball at Position One", Spindexer.INSTANCE.getBallAtPosition()[0]);
+        telemetry.addData("Ball at Position Two", Spindexer.INSTANCE.getBallAtPosition()[1]);
+        telemetry.addData("Ball at Position Three", Spindexer.INSTANCE.getBallAtPosition()[2]);
+        telemetry.addData("Nearest Free Position", Spindexer.INSTANCE.freePosition());
+        telemetry.addData("Spindexer Position", Spindexer.INSTANCE.getPosition());
+        telemetry.addData("Mode", Spindexer.INSTANCE.getPositionType());    }
 }

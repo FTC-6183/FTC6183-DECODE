@@ -80,11 +80,11 @@ public class TestShooter extends NextFTCOpMode {
         telemetry.addData("y", Pinpoint.INSTANCE.getPosY());
         telemetry.addData("heading", Pinpoint.INSTANCE.getHeading());
         telemetry.addData("360 Heading", (((Pinpoint.INSTANCE.getHeading() % 360) + 360) % 360));
-        telemetry.addData("Position of Turret", (Turret.INSTANCE.positionToAngle(Turret.INSTANCE.turretOnePosition())));
+//        telemetry.addData("Position of Turret", (Turret.INSTANCE.positionToAngle(Turret.INSTANCE.turretOnePosition())));
         telemetry.addData("Turret Angle Set", (Turret.INSTANCE.getTurretAngleSet()));
         telemetry.addData("Turret Power Set", (Turret.INSTANCE.getTurretPowerSet()));
-        telemetry.addData("Turret One Position", Turret.INSTANCE.turretOnePosition());
-        telemetry.addData("Turret Two Position", Turret.INSTANCE.turretTwoPosition());
+//        telemetry.addData("Turret One Position", Turret.INSTANCE.turretOnePosition());
+//        telemetry.addData("Turret Two Position", Turret.INSTANCE.turretTwoPosition());
 
 
         //telemetry.addData("Turret Maximum Voltage",Turret.INSTANCE.getMaxVoltageFromEncoder());

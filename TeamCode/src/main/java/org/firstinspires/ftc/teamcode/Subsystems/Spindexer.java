@@ -5,6 +5,7 @@ import static java.lang.Math.abs;
 import android.graphics.Color;
 
 import com.acmerobotics.dashboard.config.Config;
+import com.pedropathing.util.Timer;
 import com.qualcomm.robotcore.hardware.AnalogInput;
 import com.qualcomm.robotcore.hardware.DigitalChannel;
 import com.qualcomm.robotcore.hardware.NormalizedColorSensor;
@@ -12,9 +13,13 @@ import com.qualcomm.robotcore.hardware.NormalizedRGBA;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
 import org.firstinspires.ftc.teamcode.SensorTest.SensorColor;
+import org.firstinspires.ftc.teamcode.NextFTCPatch.SequentialGroupFixed;
+
 
 import dev.nextftc.control.feedback.PIDCoefficients;
 import dev.nextftc.core.commands.Command;
+import dev.nextftc.core.commands.delays.Delay;
+import dev.nextftc.core.commands.groups.SequentialGroup;
 import dev.nextftc.core.commands.utility.InstantCommand;
 import dev.nextftc.core.commands.utility.NullCommand;
 import dev.nextftc.core.subsystems.Subsystem;
@@ -27,6 +32,8 @@ import dev.nextftc.hardware.positionable.SetPosition;
 public class Spindexer implements Subsystem {
     public static PIDCoefficients spinCoefficients = new PIDCoefficients(0.001,0,0);
     private double power = 0;
+    private long lastDetectionTime = 0;
+    public static long detectionDelay = 350;
     public static double maxPower = 0.3;
     public static float plUpper = 250;
     public static float plLower = 210;
@@ -50,8 +57,8 @@ public class Spindexer implements Subsystem {
 
     //Pin 0 detects Green
     //Pin 1 detects Purple
-    private CRServoEx spinServo = new CRServoEx("spinServo");
-//    private ServoEx spinServo = new ServoEx("spinServo");
+    //private CRServoEx spinServo = new CRServoEx("spinServo");
+    private ServoEx spinServo = new ServoEx("spinServo");
     private AnalogInput spinEncoder;
 
     NormalizedColorSensor leftColorSensor;
@@ -134,9 +141,20 @@ public class Spindexer implements Subsystem {
     public static double shootAngleTwo = 136;//191;
     public static double shootAngleThree = 255;//315;
 
+    public static double intakePositionOne = 0.05;
+    public static double intakePositionTwo = 0.42;
+    public static double intakePositionThree = 0.79;
 
-    public static double intakeAngles[] = new double[]{intakeAngleOne, intakeAngleTwo, intakeAngleThree};
-    public static double shootAngles[] = new double[]{shootAngleOne,shootAngleTwo,shootAngleThree};
+    public static double shootPositionOne = 0.25;
+    public static double shootPositionTwo = 0.62;
+    public static double shootPositionThree = 1;
+
+
+//    public static double intakeAngles[] = new double[]{intakeAngleOne, intakeAngleTwo, intakeAngleThree};
+//    public static double shootAngles[] = new double[]{shootAngleOne,shootAngleTwo,shootAngleThree};
+    public static double[] intakePositions = new double[]{intakePositionOne,intakePositionTwo,intakePositionThree};
+    public static double[] shootPositions = new double[]{shootPositionOne,shootPositionTwo,shootPositionThree};
+
     private double TICKTODEGREES = (double) 360 / 4000;
     //Zero is Green, One is Purple, Negative One is empty
     public static final int GPP = 21;
@@ -148,36 +166,13 @@ public class Spindexer implements Subsystem {
 
     private DetectedColor[] ballAtPosition = new DetectedColor[3];
 
-/*
-    private ControlSystem spindexerControl = ControlSystem.builder()
-    .angular(AngleType.RADIANS,
-                    feedback -> feedback.posPid(spinCoefficients))
-     .build();
-     */
-
-    /*
-
-    private ControlSystem spindexerControl = ControlSystem.builder()
-            .posPid(spinCoefficients)
-            .build();
-
-     */
-
     //TODO: Remember to change the mode of the Color Sensor
     @Override
     public void initialize(){
         leftColorSensor = ActiveOpMode.hardwareMap().get(NormalizedColorSensor.class, "leftColorSensor");
         rightColorSensor = ActiveOpMode.hardwareMap().get(NormalizedColorSensor.class, "rightColorSensor");
-//        leftColorSensorPurple = ActiveOpMode.hardwareMap().get(DigitalChannel.class, "LCSP");
-//        rightColorSensorPurple = ActiveOpMode.hardwareMap().get(DigitalChannel.class, "RCSP");
-//        leftColorSensorGreen = ActiveOpMode.hardwareMap().get(DigitalChannel.class, "LCSG");
-//        rightColorSensorGreen = ActiveOpMode.hardwareMap().get(DigitalChannel.class, "RCSG");
-//        leftColorSensor = ActiveOpMode.hardwareMap().get(AnalogInput.class,"leftColorSensor");
-//        rightColorSensor = ActiveOpMode.hardwareMap().get(AnalogInput.class, "rightColorSensor");
+        spinServo.setPosition(0);
 
-
-        spinEncoder = ActiveOpMode.hardwareMap().get(AnalogInput.class,"spinEncoder");
-        spinServo.setPower(0);
         for(int i = 0; i < ballAtPosition.length; i++){
             ballAtPosition[i] = DetectedColor.EMPTY;
         }
@@ -186,6 +181,7 @@ public class Spindexer implements Subsystem {
         colorPointer = -1;
     }
     public DetectedColor readCurrentColor(){
+        long currentTime = System.currentTimeMillis();
         leftColorSensor.setGain(2);
         rightColorSensor.setGain(2);
         NormalizedRGBA colorsLeft = leftColorSensor.getNormalizedColors();
@@ -193,8 +189,9 @@ public class Spindexer implements Subsystem {
         Color.colorToHSV(colorsLeft.toColor(), hsvValuesLeft);
         Color.colorToHSV(colorsRight.toColor(), hsvValuesRight);
         DetectedColor currentColor = DetectedColor.getDetectedColor(hsvValuesLeft,hsvValuesRight);
-        if(Math.abs(getCurrentAngleFromEncoder()-intakeAngles[currentPosition.ordinal()])<20){
+        if(Spindexer.INSTANCE.getPositionType() == PositionType.INTAKE && (currentTime - lastDetectionTime) >= detectionDelay){
             ballAtPosition[currentPosition.ordinal()] = currentColor;
+            lastDetectionTime = currentTime;
         }
         return currentColor;
     }
@@ -254,24 +251,13 @@ public class Spindexer implements Subsystem {
     public Command setToPosition(Position position){
         Spindexer.currentPosition = position;
         if(positionType == PositionType.INTAKE){
-            return new InstantCommand(setAngle(intakeAngles[position.ordinal()]));
+            return new InstantCommand(setAngle(intakePositions[position.ordinal()]));
         }
         else if(positionType == PositionType.SHOOT){
-            return new InstantCommand(setAngle(shootAngles[position.ordinal()]));
+            return new InstantCommand(setAngle(shootPositions[position.ordinal()]));
         }
-        return new InstantCommand(setAngle(intakeAngles[position.ordinal()]));
+        return new InstantCommand(setAngle(intakePositions[position.ordinal()]));
     }
-
-    public double getShootAngle(int index){
-        return shootAngles[index];
-    }
-
-    public double getIntakeAngle(int index){
-        return intakeAngles[index];
-    }
-
-
-
     public Command nextPosition(){
         currentPosition = currentPosition.next();
         return setToPosition(currentPosition);
@@ -289,9 +275,7 @@ public class Spindexer implements Subsystem {
 
     }
     public Command setAngle(double goal){
-        return new InstantCommand(()-> power = pValue * wrapDeg(getAbsoluteAngleFromEncoder()-goal)
-        );
-
+        return new SetPosition(spinServo,goal);
     }
     public int freePosition(){
    int position = currentPosition.ordinal();
@@ -320,6 +304,10 @@ public class Spindexer implements Subsystem {
             position = position%3;
         }
         return -1; //No Filled
+    }
+
+    public Command setPosition(double position){
+        return new SetPosition(spinServo,position);
     }
     public Command setToFreePosition(){
         if(freePosition()!=-1){
@@ -369,10 +357,10 @@ public class Spindexer implements Subsystem {
 
     @Override
     public void periodic() {
-        if(Math.abs(power) > maxPower) {
-            power = maxPower * Math.signum(power);
-        }
-        spinServo.setPower(power);
+//        if(Math.abs(power) > maxPower) {
+//            power = maxPower * Math.signum(power);
+//        }
+//        spinServo.setPower(power);
         checkSpindexerState();
     }
 

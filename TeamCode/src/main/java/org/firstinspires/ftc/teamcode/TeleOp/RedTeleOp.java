@@ -2,7 +2,7 @@ package org.firstinspires.ftc.teamcode.TeleOp;
 
 import static org.firstinspires.ftc.teamcode.Subsystems.Spindexer.Position.POSITION_ONE;
 
-
+import org.firstinspires.ftc.teamcode.Utils.Aliance;
 import com.acmerobotics.dashboard.FtcDashboard;
 import com.acmerobotics.dashboard.config.Config;
 import com.acmerobotics.dashboard.telemetry.MultipleTelemetry;
@@ -10,6 +10,7 @@ import com.bylazar.configurables.annotations.Configurable;
 import com.bylazar.telemetry.PanelsTelemetry;
 import com.bylazar.telemetry.TelemetryManager;
 import com.pedropathing.follower.Follower;
+import com.pedropathing.geometry.Pose;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
@@ -20,6 +21,7 @@ import org.firstinspires.ftc.teamcode.Subsystems.Drivetrain;
 import org.firstinspires.ftc.teamcode.Subsystems.Intake;
 import org.firstinspires.ftc.teamcode.Subsystems.Pinpoint;
 import org.firstinspires.ftc.teamcode.Subsystems.Spindexer;
+import org.firstinspires.ftc.teamcode.Auto.SoloAuto.RedCloseSixBallAuto;
 import org.firstinspires.ftc.teamcode.Subsystems.Transfer;
 import org.firstinspires.ftc.teamcode.Subsystems.Turret;
 import org.firstinspires.ftc.teamcode.Vision.Limelight;
@@ -57,7 +59,7 @@ public class RedTeleOp extends NextFTCOpMode {
     public void onStartButtonPressed(){
         telemetry = new MultipleTelemetry(telemetry, FtcDashboard.getInstance().getTelemetry());
         Drivetrain.INSTANCE.startRobotDrive().schedule();
-        Pinpoint.INSTANCE.updatePosition(new Pose2D(DistanceUnit.INCH, 8.5, 8.875, AngleUnit.DEGREES, 90));
+        Pinpoint.INSTANCE.updatePosition(new Pose2D(DistanceUnit.INCH, 8.5, 9, AngleUnit.DEGREES, 180));
         Gamepads.gamepad1().circle()
                 .toggleOnBecomesTrue()
                 .whenBecomesTrue(Intake.INSTANCE.on())
@@ -68,10 +70,12 @@ public class RedTeleOp extends NextFTCOpMode {
                 Transfer.INSTANCE.transferDown(),
                 new InstantCommand(()->Spindexer.INSTANCE.setColor(Spindexer.INSTANCE.getPosition(), Spindexer.DetectedColor.EMPTY))
         );
-        Command intakeMode = new SequentialGroup(
-                new InstantCommand(()->Spindexer.INSTANCE.setPositionType(Spindexer.PositionType.INTAKE)));
+        Command intakeMode = new SequentialGroupFixed(
+                new InstantCommand(()->Spindexer.INSTANCE.setPositionType(Spindexer.PositionType.INTAKE)),
+                Intake.INSTANCE.on()
+        );
 
-        Command shootMode = new SequentialGroup(
+        Command shootMode = new SequentialGroupFixed(
                 new InstantCommand(()->Spindexer.INSTANCE.setPositionType(Spindexer.PositionType.SHOOT)));
 
         Gamepads.gamepad1().cross()
@@ -83,7 +87,7 @@ public class RedTeleOp extends NextFTCOpMode {
                 .whenBecomesFalse(shootMode);
 
         Gamepads.gamepad1().square()
-                .whenBecomesTrue(()->Pinpoint.INSTANCE.updatePosition(new Pose2D(DistanceUnit.INCH, 8.5, 8.875, AngleUnit.DEGREES, 90)));
+                .whenBecomesTrue(()->Pinpoint.INSTANCE.updatePosition(new Pose2D(DistanceUnit.INCH, 8.5, 9, AngleUnit.DEGREES, 180)));
 
         Gamepads.gamepad1().dpadLeft()
                 .toggleOnBecomesTrue()
@@ -96,18 +100,18 @@ public class RedTeleOp extends NextFTCOpMode {
         Gamepads.gamepad1().rightBumper()
                 .whenBecomesTrue(Spindexer.Position::previous);
 
-        Gamepads.gamepad2().rightBumper()
-                .whenTrue(()->Turret.INSTANCE.updateAngleOffset(-1));
+        Gamepads.gamepad1().rightTrigger().greaterThan(0.3)
+                .whenTrue(()->Turret.INSTANCE.updateAngleOffset(-0.1));
 
-        Gamepads.gamepad2().leftBumper()
-                .whenTrue(()->Turret.INSTANCE.updateAngleOffset(1));
+        Gamepads.gamepad1().leftTrigger().greaterThan(0.3)
+                .whenTrue(()->Turret.INSTANCE.updateAngleOffset(0.1));
 
-        Gamepads.gamepad2().cross()
+        Gamepads.gamepad1().dpadDown()
                 .whenBecomesTrue(()->Turret.INSTANCE.zeroAngleOffset());
 
-        Gamepads.gamepad2().b()
+        Gamepads.gamepad1().dpadUp()
                 .toggleOnBecomesTrue()
-                .whenBecomesTrue( () -> turretLock = true)
+                .whenBecomesTrue(() -> turretLock = true)
                 .whenBecomesFalse(() -> turretLock = false);
     }
     @Override
@@ -118,10 +122,8 @@ public class RedTeleOp extends NextFTCOpMode {
         telemetry.addData("x", Pinpoint.INSTANCE.getPosX());
         telemetry.addData("y", Pinpoint.INSTANCE.getPosY());
         telemetry.addData("Heading", (((Pinpoint.INSTANCE.getHeading() % 360) + 360) % 360));
-
         telemetry.addData("Shooter Velocity", Turret.INSTANCE.getVelocity());
         telemetry.addData("Set Velocity", velocity);
-
         telemetry.addData("Current Color", Spindexer.INSTANCE.readCurrentColor());
         telemetry.addData("Ball at Position One", Spindexer.INSTANCE.getBallAtPosition()[0]);
         telemetry.addData("Ball at Position Two", Spindexer.INSTANCE.getBallAtPosition()[1]);
@@ -140,23 +142,23 @@ public class RedTeleOp extends NextFTCOpMode {
         if(Spindexer.INSTANCE.getPositionType() == Spindexer.PositionType.INTAKE ){
             velocity = 500;
             if(!turretLock){
-                Turret.INSTANCE.setToAngle(90).schedule();
+                Turret.INSTANCE.setToAngle(270).schedule();
             }
         }
         else if(Spindexer.INSTANCE.getPositionType() == Spindexer.PositionType.SHOOT){
-            velocity = Turret.INSTANCE.distanceToVelocity(Pinpoint.INSTANCE.getPosX() , Pinpoint.INSTANCE.getPosY());
+            velocity = Turret.INSTANCE.distanceToVelocity(Pinpoint.INSTANCE.getPosX() , Pinpoint.INSTANCE.getPosY(), Aliance.RED);
             if(!turretLock){
-                Turret.INSTANCE.followGoalOdometryPositional(Aliance.BLUE).schedule();
+                Turret.INSTANCE.followGoalOdometryPositional(Aliance.RED,0).schedule();
             }
             if (Math.abs(Turret.INSTANCE.getVelocity() - velocity) < 30){
                 gamepad1.rumbleBlips(1);
             }
         }
         if (turretLock){
-            Turret.INSTANCE.setToAngle(90).schedule();
+            Turret.INSTANCE.setToAngle(270).schedule();
         }
 
--p; ?        hoodPosition = Turret.INSTANCE.distanceToPosition(Pinpoint.INSTANCE.getPosX(), Pinpoint.INSTANCE.getPosY());
+        hoodPosition = Turret.INSTANCE.distanceToPosition(Pinpoint.INSTANCE.getPosX(), Pinpoint.INSTANCE.getPosY(), Aliance.RED);
         Turret.INSTANCE.setVelocity(velocity).schedule();
         Turret.INSTANCE.setHoodPosition(hoodPosition).schedule();
         Turret.INSTANCE.periodic();

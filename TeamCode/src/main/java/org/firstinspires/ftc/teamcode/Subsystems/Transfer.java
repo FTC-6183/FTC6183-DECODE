@@ -19,9 +19,9 @@ public class Transfer implements Subsystem {
     private ServoEx rightFork = new ServoEx("rightFork");
 
     private double leftUp = 1;
-    private double rightUp = 0.1;
+    private double rightUp = 0;
 
-    private double leftDown = 0.1;
+    private double leftDown = 0;
     private double rightDown = 1;
     public Command transferUp(){
         return new SetPosition(leftFork,leftUp).and(new SetPosition(rightFork,rightUp));

@@ -165,20 +165,21 @@ public class TestSpindexer extends NextFTCOpMode {
         telemetry.addData("Ball at Position Three", Spindexer.INSTANCE.getBallAtPosition()[2]);
         telemetry.addData("Spindexer Position", Spindexer.INSTANCE.getPosition());
         telemetry.addData("Mode",Spindexer.INSTANCE.getPositionType());
-        Turret.INSTANCE.setVelocity(0).schedule();
-        if(Spindexer.INSTANCE.freePosition()!=-1 && Spindexer.INSTANCE.getPositionType() == Spindexer.PositionType.INTAKE&& !shootcycle) {
-            Spindexer.INSTANCE.setToPosition(Spindexer.Position.values()[Spindexer.INSTANCE.freePosition()]).schedule();
-        }
-        else if(Spindexer.INSTANCE.getPositionType() == Spindexer.PositionType.SHOOT && Spindexer.INSTANCE.filledPosition()!=-1&&!shootcycle ){
-            Spindexer.INSTANCE.setToPosition(Spindexer.Position.values()[Spindexer.INSTANCE.filledPosition()]).schedule();
-        }
-        else if(!shootcycle){
-            Spindexer.INSTANCE.setToPosition(Spindexer.Position.values()[0]).schedule();
-        }
-        else{
-            Spindexer.INSTANCE.setToPosition(Spindexer.INSTANCE.getPosition()).schedule();
-        }
-        Spindexer.INSTANCE.periodic();
+        Spindexer.INSTANCE.setPosition(spinAngle).schedule();
+//        Turret.INSTANCE.setVelocity(0).schedule();
+//        if(Spindexer.INSTANCE.freePosition()!=-1 && Spindexer.INSTANCE.getPositionType() == Spindexer.PositionType.INTAKE&& !shootcycle) {
+//            Spindexer.INSTANCE.setToPosition(Spindexer.Position.values()[Spindexer.INSTANCE.freePosition()]).schedule();
+//        }
+//        else if(Spindexer.INSTANCE.getPositionType() == Spindexer.PositionType.SHOOT && Spindexer.INSTANCE.filledPosition()!=-1&&!shootcycle ){
+//            Spindexer.INSTANCE.setToPosition(Spindexer.Position.values()[Spindexer.INSTANCE.filledPosition()]).schedule();
+//        }
+//        else if(!shootcycle){
+//            Spindexer.INSTANCE.setToPosition(Spindexer.Position.values()[0]).schedule();
+//        }
+//        else{
+//            Spindexer.INSTANCE.setToPosition(Spindexer.INSTANCE.getPosition()).schedule();
+//        }
+//        Spindexer.INSTANCE.periodic();
         telemetry.update();
     }
     @Override

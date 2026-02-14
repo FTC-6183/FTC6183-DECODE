@@ -2,6 +2,7 @@ package org.firstinspires.ftc.teamcode.Subsystems;
 
 
 import com.acmerobotics.dashboard.config.Config;
+import com.qualcomm.robotcore.hardware.AnalogInput;
 import com.qualcomm.robotcore.hardware.DcMotor;
 
 import org.firstinspires.ftc.robotcore.external.Telemetry;
@@ -21,8 +22,8 @@ import dev.nextftc.control.feedforward.BasicFeedforwardParameters;
 import dev.nextftc.core.commands.Command;
 import dev.nextftc.core.commands.delays.WaitUntil;
 import dev.nextftc.core.commands.utility.InstantCommand;
-import dev.nextftc.core.commands.utility.NullCommand;
 import dev.nextftc.core.subsystems.Subsystem;
+import dev.nextftc.ftc.ActiveOpMode;
 import dev.nextftc.hardware.controllable.RunToPosition;
 import dev.nextftc.hardware.controllable.RunToVelocity;
 import dev.nextftc.hardware.impl.CRServoEx;
@@ -37,6 +38,7 @@ public class Turret implements Subsystem {
     private Aliance a;
     public static double angleGlobal = 0;
     public static double power = 1;
+    public static double positionTolerance = 2;
     public double setpoint = 0;
 
     public double previousHood = 0.1;
@@ -46,10 +48,8 @@ public class Turret implements Subsystem {
     public static double error = 0;
     public static double maxPower = 0.45;
     public static PIDCoefficients shooterCoefficients = new PIDCoefficients(0.00005,0,0);
-    public static PIDCoefficients turretCoefficientsOdometry = new PIDCoefficients(0.01,0,0.01);
+    public static PIDCoefficients turretCoefficientsOdometry = new PIDCoefficients(0.04,0,0.0001);
     public static PIDCoefficients turretCoefficientsLimelight = new PIDCoefficients(0.01,0,0.01);
-
-
     public static BasicFeedforwardParameters shooterff = new BasicFeedforwardParameters(0.00055, 0, 0.03);
 
     public static final Turret INSTANCE = new Turret(Aliance.BLUE);
@@ -57,31 +57,21 @@ public class Turret implements Subsystem {
 
     private double turretAngleSet = 0;
     private double turretPowerSet = 0;
-
-
-    public double turretOffSet = -65;
+    public static double turretOffSet = 250;
     private Turret(Aliance a){
         this.a = a;
     };
     private double lastAngle = 0;
-    private Interpolator shooter = new Interpolator();
-    private Interpolator hood = new Interpolator();
-
+    private Interpolator shooterBlue = new Interpolator();
+    private Interpolator hoodBlue = new Interpolator();
+    private Interpolator shooterRed = new Interpolator();
+    private Interpolator hoodRed = new Interpolator();
 
     private MotorEx shooterMotor1 = new MotorEx("shoot1").floatMode();
     private MotorEx shooterMotor2 = new MotorEx("shoot2").floatMode();
     private ServoEx hoodServo = new ServoEx("hood");
-    private MotorEx turretEncoder = new MotorEx("turretEncoder");
-
-    private CRServoEx turret1 = new CRServoEx("turret1");
-    private CRServoEx turret2 = new CRServoEx("turret2");
-
-    //private ServoEx turret1 = new ServoEx("turret1");
-    //private ServoEx turret2 = new ServoEx("turret2" );
-
-
-//    private AnalogInput encoder;
-
+    private AnalogInput turretEncoder;
+    private MotorEx turret = new MotorEx("turret");
     public static final double ANGLE_TO_POSITION = (double) 1 /360;
     public static final int MAX_CW_SERVO = 1;
     public static final double MAX_CCW_SERVO = (double)(360/355) - 1 ;
@@ -94,7 +84,7 @@ public class Turret implements Subsystem {
     public static double RED_GOAL_X = 144;
     public static double RED_GOAL_Y = 144;
     public static double BLUE_GOAL_X = 0;
-    public static double BLUE_GOAL_Y = 142;
+    public static double BLUE_GOAL_Y = 144;
 
     private double cpr_turret_shaft = 8192;
     private double turret_to_shaft = ((double) 10 /3);
@@ -120,71 +110,233 @@ public class Turret implements Subsystem {
     @Override public void initialize(){
         shooterMotor1.setPower(0);
         shooterMotor2.setPower(0);
-        turret1.setPower(0);
-        turret2.setPower(0);
-//        encoder = ActiveOpMode.hardwareMap().get(AnalogInput.class,"encoderServo");
-        shooter.addPoint(72.6291,72.2894,1100);
-        shooter.addPoint(57,82.67,1100);
-        shooter.addPoint(42,99,1000);
-        shooter.addPoint(23,118,900);
-        shooter.addPoint(34,110,900);
-        shooter.addPoint(73,90,1050);
-        shooter.addPoint(72,108,1050);
-        shooter.addPoint(72,129,1050);
-        shooter.addPoint(55,102,1050);
-        shooter.addPoint(56,128,1050);
-        shooter.addPoint(87,87,1100);
-        shooter.addPoint(91,99,1200);
-        shooter.addPoint(108,127,1250);
-        shooter.addPoint(70,95,1100);
-        shooter.addPoint(80,120,1000);
-        shooter.addPoint(87,97,1100);
-        shooter.addPoint(92,130,1100);
 
-        hood.addPoint(72.6291,72.2894,0.1);
-        hood.addPoint(57,82.67,0.05);
-        hood.addPoint(42,99,0.1);
-        hood.addPoint(23,118,0.35);
-        hood.addPoint(34,110,0.35);
-        hood.addPoint(73,90,0.2);
-        hood.addPoint(72,108,0.2);
-        hood.addPoint(72,129,0.1);
-        hood.addPoint(55,102,0.05);
-        hood.addPoint(56,128,0.1);
-        hood.addPoint(87,87,0.1);
-        hood.addPoint(91,99,0.1);
-        hood.addPoint(108,127,0.1);
-        hood.addPoint(70,95,0.1);
-        hood.addPoint(80,120,0.05);
-        hood.addPoint(87,97,0.1);
-        hood.addPoint(92,130,0.1);
+        shooterBlue.addPoint(71.3709,72.2894,1100);
+        shooterBlue.addPoint(64,84,1050);
+        shooterBlue.addPoint(51,90,1000);
+        shooterBlue.addPoint(33,116,900);
+        shooterBlue.addPoint(74,90,1100);
+        shooterBlue.addPoint(74,106,1100);
+        shooterBlue.addPoint(72,129,1100);
+        shooterBlue.addPoint(63,100,1050);
+        shooterBlue.addPoint(59,125,1050);
+        shooterBlue.addPoint(97,89,1200);
+        shooterBlue.addPoint(114,111,1200);
+        shooterBlue.addPoint(118,126,1200);
+        shooterBlue.addPoint(87,105,1200);
+        shooterBlue.addPoint(87,130,1100);
+
+        shooterBlue.addPoint(144-53,9,1400);
+        shooterBlue.addPoint(144-60,9,1400);
+        shooterBlue.addPoint(144-76,9,1400);
+        shooterBlue.addPoint(144-85,9,1400);
+
+        shooterBlue.addPoint(144-53,17,1350);
+        shooterBlue.addPoint(144-60,17,1350);
+        shooterBlue.addPoint(144-76,17,1350);
+        shooterBlue.addPoint(144-85,17,1350);
+
+        shooterBlue.addPoint(144-53,25,1350);
+        shooterBlue.addPoint(144-60,25,1350);
+        shooterBlue.addPoint(144-76,25,1350);
+        shooterBlue.addPoint(144-85,25,1350);
+
+        hoodBlue.addPoint(71.3709,72.2894,0.1);
+        hoodBlue.addPoint(64,84,0.1);
+        hoodBlue.addPoint(51,90,0.1);
+        hoodBlue.addPoint(33,116,0.5);
+        hoodBlue.addPoint(74,90,0.15);
+        hoodBlue.addPoint(74,106,0.15);
+        hoodBlue.addPoint(72,129,0.15);
+        hoodBlue.addPoint(63,100,0.15);
+        hoodBlue.addPoint(59,125,0.15);
+        hoodBlue.addPoint(97,89,0.15);
+        hoodBlue.addPoint(114,111,0.15);
+        hoodBlue.addPoint(118,126,0.15);
+        hoodBlue.addPoint(87,105,0.1);
+        hoodBlue.addPoint(87,130,0.1);
+
+        hoodBlue.addPoint(144-53,9,0.12);
+        hoodBlue.addPoint(144-60,9,0.12);
+        hoodBlue.addPoint(144-76,9,0.12);
+        hoodBlue.addPoint(144-85,9,0.12);
+
+        hoodBlue.addPoint(144-53,17,0.15);
+        hoodBlue.addPoint(144-60,17,0.15);
+        hoodBlue.addPoint(144-76,17,0.15);
+        hoodBlue.addPoint(144-85,17,0.15);
+
+        hoodBlue.addPoint(144-53,25,0.15);
+        hoodBlue.addPoint(144-60,25,0.15);
+        hoodBlue.addPoint(144-76,25,0.15);
+        hoodBlue.addPoint(144-85,25,0.15);
+
+
+//        shooterBlue.addPoint(72.6291,72.2894,1100);
+//        shooterBlue.addPoint(57,82.67,1050);
+//        shooterBlue.addPoint(42,99,1000);
+//        shooterBlue.addPoint(31,119,900);
+//        shooterBlue.addPoint(70,90,1050);
+//        shooterBlue.addPoint(72,108,1050);
+//        shooterBlue.addPoint(72,129,1050);
+//        shooterBlue.addPoint(82,89,1100);
+//        shooterBlue.addPoint(90,96,1150);
+//        shooterBlue.addPoint(102,100,1050);
+//        shooterBlue.addPoint(110,116,1150);
+//        shooterBlue.addPoint(52,98,1000);
+//        shooterBlue.addPoint(51,127,950);
+//        shooterBlue.addPoint(83,103,1050);
+//        shooterBlue.addPoint(91,124,1050);
+//
+//        shooterBlue.addPoint(144-53,9,1400);
+//        shooterBlue.addPoint(144-60,9,1400);
+//        shooterBlue.addPoint(144-76,9,1400);
+//        shooterBlue.addPoint(144-85,9,1400);
+//
+//        shooterBlue.addPoint(144-53,17,1350);
+//        shooterBlue.addPoint(144-60,17,1350);
+//        shooterBlue.addPoint(144-76,17,1350);
+//        shooterBlue.addPoint(144-85,17,1350);
+//
+//        shooterBlue.addPoint(144-53,25,1350);
+//        shooterBlue.addPoint(144-60,25,1350);
+//        shooterBlue.addPoint(144-76,25,1350);
+//        shooterBlue.addPoint(144-85,25,1350);
+//
+//
+//        hoodBlue.addPoint(72.6291,72.2894,0.1);
+//        hoodBlue.addPoint(57,82.67,0.05);
+//        hoodBlue.addPoint(42,99,0.1);
+//        hoodBlue.addPoint(23,118,0.35);
+//        hoodBlue.addPoint(34,110,0.35);
+//        hoodBlue.addPoint(73,90,0.2);
+//        hoodBlue.addPoint(72,108,0.2);
+//        hoodBlue.addPoint(72,129,0.1);
+//        hoodBlue.addPoint(55,102,0.05);
+//        hoodBlue.addPoint(56,128,0.1);
+//        hoodBlue.addPoint(87,87,0.1);
+//        hoodBlue.addPoint(91,99,0.1);
+//        hoodBlue.addPoint(108,127,0.1);
+//        hoodBlue.addPoint(70,95,0.1);
+//        hoodBlue.addPoint(80,120,0.05);
+//        hoodBlue.addPoint(87,97,0.1);
+//        hoodBlue.addPoint(92,130,0.1);
+//
+//        hoodBlue.addPoint(144-53,9,0.12);
+//        hoodBlue.addPoint(144-60,9,0.12);
+//        hoodBlue.addPoint(144-76,9,0.12);
+//        hoodBlue.addPoint(144-85,9,0.12);
+//
+//        hoodBlue.addPoint(144-53,17,0.15);
+//        hoodBlue.addPoint(144-60,17,0.15);
+//        hoodBlue.addPoint(144-76,17,0.15);
+//        hoodBlue.addPoint(144-85,17,0.15);
+//
+//        hoodBlue.addPoint(144-53,25,0.15);
+//        hoodBlue.addPoint(144-60,25,0.15);
+//        hoodBlue.addPoint(144-76,25,0.15);
+//        hoodBlue.addPoint(144-85,25,0.15);
+
+//        shooterRed.addPoint(144-72.6291,72.2894,1100);
+//        shooterRed.addPoint(144-57,82.67,1050);
+//        shooterRed.addPoint(144-42,99,1000);
+//        shooterRed.addPoint(144-31,119,900);
+//        shooterRed.addPoint(144-70,90,1050);
+//        shooterRed.addPoint(144-72,108,1050);
+//        shooterRed.addPoint(144-72,129,1050);
+//        shooterRed.addPoint(144-82,89,1100);
+//        shooterRed.addPoint(144-90,96,1150);
+//        shooterRed.addPoint(144-102,100,1050);
+//        shooterRed.addPoint(144-110,116,1150);
+//        shooterRed.addPoint(144-52,98,1000);
+//        shooterRed.addPoint(144-51,127,950);
+//        shooterRed.addPoint(144-83,103,1050);
+//        shooterRed.addPoint(144-91,124,1050);
+
+        shooterRed.addPoint(72.6291,72.2894,1100);
+        shooterRed.addPoint(80,84,1050);
+        shooterRed.addPoint(93,90,1000);
+        shooterRed.addPoint(111,116,900);
+        shooterRed.addPoint(70,90,1100);
+        shooterRed.addPoint(70,106,1100);
+        shooterRed.addPoint(72,129,1100);
+        shooterRed.addPoint(81,100,1050);
+        shooterRed.addPoint(85,125,1050);
+        shooterRed.addPoint(47,89,1200);
+        shooterRed.addPoint(30,111,1200);
+        shooterRed.addPoint(26,126,1200);
+        shooterRed.addPoint(57,105,1200);
+        shooterRed.addPoint(57,130,1100);
+
+        shooterRed.addPoint(53,9,1400);
+        shooterRed.addPoint(60,9,1400);
+        shooterRed.addPoint(76,9,1400);
+        shooterRed.addPoint(85,9,1400);
+
+        shooterRed.addPoint(53,17,1350);
+        shooterRed.addPoint(60,17,1350);
+        shooterRed.addPoint(76,17,1350);
+        shooterRed.addPoint(85,17,1350);
+
+        shooterRed.addPoint(53,25,1350);
+        shooterRed.addPoint(60,25,1350);
+        shooterRed.addPoint(76,25,1350);
+        shooterRed.addPoint(85,25,1350);
+
+        hoodRed.addPoint(72.6291,72.2894,0.1);
+        hoodRed.addPoint(80,84,0.1);
+        hoodRed.addPoint(93,90,0.1);
+        hoodRed.addPoint(111,116,0.5);
+        hoodRed.addPoint(70,90,0.15);
+        hoodRed.addPoint(70,106,0.15);
+        hoodRed.addPoint(72,129,0.15);
+        hoodRed.addPoint(81,100,0.15);
+        hoodRed.addPoint(85,125,0.15);
+        hoodRed.addPoint(47,89,0.15);
+        hoodRed.addPoint(30,111,0.15);
+        hoodRed.addPoint(26,126,0.15);
+        hoodRed.addPoint(57,105,0.1);
+        hoodRed.addPoint(57,130,0.1);
+
+        hoodRed.addPoint(53,9,0.12);
+        hoodRed.addPoint(60,9,0.12);
+        hoodRed.addPoint(76,9,0.12);
+        hoodRed.addPoint(85,9,0.12);
+
+        hoodRed.addPoint(53,17,0.15);
+        hoodRed.addPoint(60,17,0.15);
+        hoodRed.addPoint(76,17,0.15);
+        hoodRed.addPoint(85,17,0.15);
+
+        hoodRed.addPoint(53,25,0.15);
+        hoodRed.addPoint(60,25,0.15);
+        hoodRed.addPoint(76,25,0.15);
+        hoodRed.addPoint(85,25,0.15);
+
+        turretEncoder = ActiveOpMode.hardwareMap().get(AnalogInput.class,"turretEncoder");
+
+
     }
     //TODO: Add the actual regression equation from testing
-    public double distanceToVelocity(double x, double y){
-        return shooter.get(x,y);
+    public double distanceToVelocity(double x, double y, Aliance aliance){
+        if(aliance == Aliance.BLUE && (y>60||y<40)){
+            return shooterBlue.get(x,y);
+        }
+        else if(aliance == Aliance.RED && (y>60||y<40)){
+            return shooterRed.get(x,y);
+        }
+        return 0;
     }
-    public static double quartic_polynomial(double x, double a, double b, double c, double d, double e) {
-        return (((a * x + b) * x + c) * x + d) * x + e;
-    }
-    //TODO: Add the actual hood angle/position from testing
-    public double distanceToPosition(double x, double y){
-        return hood.get(x,y);
+    public double distanceToPosition(double x, double y, Aliance aliance){
+        if(aliance == Aliance.BLUE){
+            return hoodBlue.get(x,y);
+        }
+        else if(aliance == Aliance.RED){
+            return hoodRed.get(x,y);
+        }
+        return hoodBlue.get(x,y);
     }
 
-//    public double headingToTurretPositionLL(){
-//        double measuredAngle = lastAngle;
-//        if(a == Aliance.RED){
-//            measuredAngle = Limelight.INSTANCE.angleFromTag(Limelight.RED_GOAL_ID);
-//        }
-//        else if(a == Aliance.BLUE){
-//            measuredAngle = Limelight.INSTANCE.angleFromTag(Limelight.BLUE_GOAL_ID);
-//        }
-//
-//        if (measuredAngle != -1) {
-//            lastAngle = measuredAngle;
-//        }
-//        return lastAngle;
-//    }
 public double headingToTurretPositionLL(){
         double measuredAngle = -1;
         if(a == Aliance.RED){
@@ -288,12 +440,18 @@ public double headingToTurretPositionLL(){
 
   }
 */
-    public Command followGoalOdometryPositional(Aliance aliance){
+    public Command followGoalOdometryPositional(Aliance aliance, double offset){
         double robotHeading = ((Pinpoint.INSTANCE.getHeading() % 360) + 360) % 360;
         double targetFieldAngle = headingToTurretPositionPinpoint(aliance);
         double turretAngle = targetFieldAngle + 90  - robotHeading + angleOffset;
         turretAngle = ((turretAngle % 360) + 360) % 360;
         currentGoal = turretAngle;
+        if(currentGoal >= 0 && currentGoal <= 90){
+            currentGoal = 0;
+        }
+        else if(currentGoal>= 90 && currentGoal<= 180){
+            currentGoal= 180;
+        }
         return setToAngle(currentGoal);
     }
 //
@@ -342,7 +500,6 @@ public double headingToTurretPositionLL(){
 
     public Command keepConstantTurret(double angle){
         double robotHeading = ((Pinpoint.INSTANCE.getHeading() % 360) + 360) % 360;
-        //double targetFieldAngle = headingToTurretPositionPinpoint();
         double turretAngle = angle + 90 - robotHeading;
         turretAngle = ((turretAngle % 360) + 360) % 360;
         return setToAngle(turretAngle);
@@ -412,9 +569,9 @@ public double headingToTurretPositionLL(){
         return new RunToVelocity(velocityControl,velocity).requires(this);
     }
 
-    public Command setTurretPosition(double position) {
-    return new SetPosition((Positionable) turret1,position).and(new SetPosition((Positionable) turret2,position));
-    }
+//    public Command setTurretPosition(double position) {
+//    return new SetPosition((Positionable) turret1,position).and(new SetPosition((Positionable) turret2,position));
+//    }
 
 /*
     public double getTurretPower(){
@@ -459,15 +616,15 @@ public double headingToTurretPositionLL(){
     public double getVelocityTwo(){return shooterMotor2.getVelocity();}
 
 
-    public double turretOnePosition(){
-        //return turret1.getPosition();
-       return turret1.getPower();
-    }
-
-    public double turretTwoPosition(){
-        //return turret2.getPosition();
-        return turret2.getPower();
-    }
+//    public double turretOnePosition(){
+//        //return turret1.getPosition();
+//       return turret1.getPower();
+//    }
+//
+//    public double turretTwoPosition(){
+//        //return turret2.getPosition();
+//        return turret2.getPower();
+//    }
 
     public double angleToPosition(double angle) {
         angle = Math.max(0, Math.min(360, angle));
@@ -507,58 +664,60 @@ public double headingToTurretPositionLL(){
     }
 
 
-    public double getTurretRelativePosition(){
-        return turretEncoder.getCurrentPosition();
-    }
+//    public double getTurretRelativePosition(){
+//        return turretEncoder.getCurrentPosition();
+//    }
 
     public double getTurretAngle(){
-       double cprToAngle = (360)/(turret_rotation_cpr);
-       double currentAngle = turretEncoder.getCurrentPosition()%turret_rotation_cpr;
-       double angle = (((cprToAngle * currentAngle + 90) % 360)  + 360) % 360;
-       return angle;
+//       double cprToAngle = (360)/(turret_rotation_cpr);
+//       double currentAngle = turretEncoder.getCurrentPosition()%turret_rotation_cpr;
+//       double angle = (((cprToAngle * currentAngle + 90) % 360)  + 360) % 360;
+        if (turretEncoder == null) return 0;
+        return ((((turretEncoder.getVoltage() / 3.3) * 360) - turretOffSet) % 360 + 360) % 360;
     }
-    public double getTurretRotations(){
-        double cprToAngle = (360)/(turret_rotation_cpr);
-        double angle = cprToAngle * turretEncoder.getCurrentPosition() + 90;
-        return angle;
-    }
-    public Command setToZero(){
-        return new InstantCommand(()->turretEncoder.getMotor().setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER));
-    }
+
+//    public double getTurretRotations(){
+//        double cprToAngle = (360)/(turret_rotation_cpr);
+//        double angle = cprToAngle * turretEncoder.getCurrentPosition() + 90;
+//        return angle;
+//    }
+//    public Command setToZero(){
+//        return new InstantCommand(()->turretEncoder.getMotor().setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER));
+//    }
 
     public Command setToAngle(double angle){
 
-        double difference = angle - getTurretAngle();
-
-        if(difference > 180){
-            difference -= 360;
-        } else if(difference < -180){
-            difference += 360;
-        }
-
-        double newRotations = getTurretRotations() + difference;
-        if((Math.abs(newRotations)>359) || (newRotations < -180)){
-            double intermediateAngle = (angle + 181) % 360;
-            return new RunToPosition(turretControl, intermediateAngle);
-        }
-        return new RunToPosition(turretControl, angle);
+//        double difference = angle - getTurretAngle();
+//
+//        if(difference > 180){
+//            difference -= 360;
+//        } else if(difference < -180){
+//            difference += 360;
+//        }
+//
+//        double newRotations = getTurretRotations() + difference;
+//        if((Math.abs(newRotations)>359) || (newRotations < -180)){
+//            double intermediateAngle = (angle + 181) % 360;
+//            return new RunToPosition(turretControl, intermediateAngle);
+//        }
+        return new RunToPosition(turretControl, angle,positionTolerance);
     }
 
     public Command setToAngleLimelight(double angle){
 
-        double difference = angle - getTurretAngle();
+//        double difference = angle - getTurretAngle();
+//
+//        if(difference > 180){
+//            difference -= 360;
+//        } else if(difference < -180){
+//            difference += 360;
+//        }
 
-        if(difference > 180){
-            difference -= 360;
-        } else if(difference < -180){
-            difference += 360;
-        }
-
-        double newRotations = getTurretRotations() + difference;
-        if((Math.abs(newRotations)>359) || (newRotations < -180)){
-            double intermediateAngle = (angle + 181) % 360;
-            return new RunToPosition(turretControlLimelight, intermediateAngle);
-        }
+//        double newRotations = getTurretRotations() + difference;
+//        if((Math.abs(newRotations)>359) || (newRotations < -180)){
+//            double intermediateAngle = (angle + 181) % 360;
+//            return new RunToPosition(turretControlLimelight, intermediateAngle);
+//        }
         return new RunToPosition(turretControlLimelight, angle);
     }
 
@@ -584,13 +743,28 @@ public double headingToTurretPositionLL(){
         if(Math.abs(power) > maxPower){
             power = maxPower * Math.signum(power);
         }
-        turret1.setPower(power);
-        turret2.setPower(power);
+        turret.setPower(power);
     }
 
     public void status(Telemetry telemetry){
         telemetry.addData("Turret Velocity", getVelocity());
+        telemetry.addData("Angle Offset",angleOffset);
     }
+
+    //    public double headingToTurretPositionLL(){
+//        double measuredAngle = lastAngle;
+//        if(a == Aliance.RED){
+//            measuredAngle = Limelight.INSTANCE.angleFromTag(Limelight.RED_GOAL_ID);
+//        }
+//        else if(a == Aliance.BLUE){
+//            measuredAngle = Limelight.INSTANCE.angleFromTag(Limelight.BLUE_GOAL_ID);
+//        }
+//
+//        if (measuredAngle != -1) {
+//            lastAngle = measuredAngle;
+//        }
+//        return lastAngle;
+//    }
     }
 
 

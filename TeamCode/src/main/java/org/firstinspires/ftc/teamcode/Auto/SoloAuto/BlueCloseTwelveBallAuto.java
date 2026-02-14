@@ -224,7 +224,7 @@ public class BlueCloseTwelveBallAuto extends NextFTCOpMode {
         telemetry.update();
         if(Spindexer.INSTANCE.freePosition()!=-1 && Spindexer.INSTANCE.getPositionType() == Spindexer.PositionType.INTAKE && !shootcycle) {
             Spindexer.INSTANCE.setToPosition(Spindexer.Position.values()[Spindexer.INSTANCE.freePosition()]).schedule();
-            Turret.INSTANCE.followGoalOdometryPositional(Aliance.BLUE).schedule();
+            Turret.INSTANCE.followGoalOdometryPositional(Aliance.BLUE,10).schedule();
         }
 //        else if(Spindexer.INSTANCE.getPositionType() == Spindexer.PositionType.SHOOT && Spindexer.INSTANCE.filledPosition()!=-1 && !shootcycle ){
 //            Spindexer.INSTANCE.setToPosition(Spindexer.Position.values()[Spindexer.INSTANCE.filledPosition()]).schedule();
@@ -232,8 +232,8 @@ public class BlueCloseTwelveBallAuto extends NextFTCOpMode {
 //        }
         else{
             Spindexer.INSTANCE.setToPosition(Spindexer.INSTANCE.getPosition()).schedule();
-            velocity = Turret.INSTANCE.distanceToVelocity(follower().getPose().getX() , follower().getPose().getY());
-            hoodPosition = Turret.INSTANCE.distanceToPosition(follower().getPose().getX() , follower().getPose().getY());
+            velocity = Turret.INSTANCE.distanceToVelocity(follower().getPose().getX() , follower().getPose().getY(), Aliance.BLUE);
+            hoodPosition = Turret.INSTANCE.distanceToPosition(follower().getPose().getX() , follower().getPose().getY(), Aliance.BLUE);
 
         }
         Turret.INSTANCE.setVelocity(velocity).schedule();

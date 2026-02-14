@@ -158,7 +158,7 @@ public class BlueCloseNineBallAuto extends NextFTCOpMode{
     public void onStartButtonPressed(){
         buildPaths();
         follower().setStartingPose(new Pose(27.184, 130.041, Math.toRadians(142)));
-        Turret.INSTANCE.setToZero().schedule();
+//        Turret.INSTANCE.setToZero().schedule();
         Pinpoint.INSTANCE.updatePosition(new Pose2D(DistanceUnit.INCH, 27.184, 130.041, AngleUnit.DEGREES, 142));
         autonomousRoutine().schedule();
     }
@@ -182,9 +182,9 @@ public class BlueCloseNineBallAuto extends NextFTCOpMode{
 
         else if(Spindexer.INSTANCE.getPositionType() == Spindexer.PositionType.SHOOT){
             Spindexer.INSTANCE.setToPosition(Spindexer.INSTANCE.getPosition()).schedule();
-            Turret.INSTANCE.followGoalOdometryPositional(Aliance.BLUE).schedule();
-            velocity = Turret.INSTANCE.distanceToVelocity(follower().getPose().getX(), follower().getPose().getY());
-            hoodPosition = Turret.INSTANCE.distanceToPosition(follower().getPose().getX(), follower().getPose().getY());
+            Turret.INSTANCE.followGoalOdometryPositional(Aliance.BLUE,10).schedule();
+            velocity = Turret.INSTANCE.distanceToVelocity(follower().getPose().getX(), follower().getPose().getY(), Aliance.BLUE);
+            hoodPosition = Turret.INSTANCE.distanceToPosition(follower().getPose().getX(), follower().getPose().getY(), Aliance.BLUE);
         }
 
         Turret.INSTANCE.setVelocity(velocity).schedule();

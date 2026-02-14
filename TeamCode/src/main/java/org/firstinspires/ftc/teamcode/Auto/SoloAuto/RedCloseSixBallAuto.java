@@ -38,9 +38,11 @@ public class RedCloseSixBallAuto extends NextFTCOpMode{
     public Path p3;
     public Path p4;
     public Path p5;
+    public Path leave;
 
     public static double hoodPosition = 0;
     public static double velocity = 0;
+    public static Pose endPose = new Pose();
     public RedCloseSixBallAuto(){
         addComponents(
                 new SubsystemComponent(Spindexer.INSTANCE, Intake.INSTANCE, Turret.INSTANCE, Transfer.INSTANCE, Pinpoint.INSTANCE),
@@ -147,7 +149,7 @@ public class RedCloseSixBallAuto extends NextFTCOpMode{
     public void onStartButtonPressed(){
         buildPaths();
         follower().setStartingPose(new Pose(116.81632653061224, 130.04081632653063, Math.toRadians(38)));
-        Turret.INSTANCE.setToZero().schedule();
+//        Turret.INSTANCE.setToZero().schedule();
         Pinpoint.INSTANCE.updatePosition(new Pose2D(DistanceUnit.INCH, 116.81632653061224, 130.04081632653063, AngleUnit.DEGREES, 38));
         autonomousRoutine().schedule();
     }
@@ -156,8 +158,8 @@ public class RedCloseSixBallAuto extends NextFTCOpMode{
     public void onUpdate() {
         telemetry.addData("X Position ", follower().getPose().getX());
         telemetry.addData("Y Position ", follower().getPose().getY());
-        telemetry.addData("Get Pose", follower().getPose().getPose());
-
+        telemetry.addData("Get Pose", follower().getPose());
+        Pinpoint.INSTANCE.periodic();
         Turret.INSTANCE.status(telemetry);
         Spindexer.INSTANCE.status(telemetry);
         telemetry.update();
@@ -171,15 +173,20 @@ public class RedCloseSixBallAuto extends NextFTCOpMode{
 
         else if(Spindexer.INSTANCE.getPositionType() == Spindexer.PositionType.SHOOT){
             Spindexer.INSTANCE.setToPosition(Spindexer.INSTANCE.getPosition()).schedule();
-            Turret.INSTANCE.followGoalOdometryPositional(Aliance.RED).schedule();
-            velocity = Turret.INSTANCE.distanceToVelocity(follower().getPose().getX(), follower().getPose().getY());
-            hoodPosition = Turret.INSTANCE.distanceToPosition(follower().getPose().getX(), follower().getPose().getY());
+            Turret.INSTANCE.followGoalOdometryPositional(Aliance.RED,10).schedule();
+            velocity = Turret.INSTANCE.distanceToVelocity(follower().getPose().getX(), follower().getPose().getY(), Aliance.RED);
+            hoodPosition = Turret.INSTANCE.distanceToPosition(follower().getPose().getX(), follower().getPose().getY(), Aliance.RED);
         }
-
+        endPose = follower().getPose();
         Turret.INSTANCE.setVelocity(velocity).schedule();
         Turret.INSTANCE.setHoodPosition(hoodPosition).schedule();
         Turret.INSTANCE.periodic();
         Spindexer.INSTANCE.periodic();
 
     }
+
+    public static Pose getEndPose(){
+        return endPose;
+    }
+
 }

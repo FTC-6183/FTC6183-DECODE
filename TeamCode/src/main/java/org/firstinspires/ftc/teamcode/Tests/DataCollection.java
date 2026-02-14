@@ -23,6 +23,8 @@ import org.firstinspires.ftc.teamcode.Subsystems.Spindexer;
 import org.firstinspires.ftc.teamcode.Subsystems.Transfer;
 import org.firstinspires.ftc.teamcode.Subsystems.Turret;
 import org.firstinspires.ftc.teamcode.Vision.Limelight;
+import org.firstinspires.ftc.teamcode.Utils.Aliance;
+
 
 import dev.nextftc.bindings.BindingManager;
 import dev.nextftc.core.commands.Command;
@@ -109,7 +111,7 @@ public class DataCollection extends NextFTCOpMode {
         TelemetryManager telemetryM = PanelsTelemetry.INSTANCE.getTelemetry();
         telemetry = new MultipleTelemetry(telemetry, FtcDashboard.getInstance().getTelemetry());
         Drivetrain.INSTANCE.startRobotDrive().schedule();
-        Turret.INSTANCE.setToZero().schedule();
+//        Turret.INSTANCE.setToZero().schedule();
         Pinpoint.INSTANCE.updatePosition(new Pose2D(DistanceUnit.INCH, 8.5, 8.875, AngleUnit.DEGREES, 90));
 
         Gamepads.gamepad1().circle()
@@ -167,9 +169,9 @@ public class DataCollection extends NextFTCOpMode {
         telemetry.addData("y:", Pinpoint.INSTANCE.getPosY());
         telemetry.addData("heading", Pinpoint.INSTANCE.getHeading());
         telemetry.addData("360 Heading", (((Pinpoint.INSTANCE.getHeading() % 360) + 360) % 360));
-        telemetry.addData("Position of Turret", (Turret.INSTANCE.positionToAngle(Turret.INSTANCE.turretOnePosition())));
-        telemetry.addData("Turret One Position", Turret.INSTANCE.turretOnePosition());
-        telemetry.addData("Turret Two Position", Turret.INSTANCE.turretTwoPosition());
+//        telemetry.addData("Position of Turret", (Turret.INSTANCE.positionToAngle(Turret.INSTANCE.turretOnePosition())));
+//        telemetry.addData("Turret One Position", Turret.INSTANCE.turretOnePosition());
+//        telemetry.addData("Turret Two Position", Turret.INSTANCE.turretTwoPosition());
         telemetry.addData("Turret Angle Set", (Turret.INSTANCE.getTurretAngleSet()));
         telemetry.addData("Turret Power Set", (Turret.INSTANCE.getTurretPowerSet()));
         telemetry.addData("Shooter Velocity", Turret.INSTANCE.getVelocity());
@@ -203,11 +205,11 @@ public class DataCollection extends NextFTCOpMode {
             Turret.INSTANCE.setToAngle(90).schedule();
         }
         else if(Spindexer.INSTANCE.getPositionType() == Spindexer.PositionType.SHOOT){
-            velocity = Turret.INSTANCE.distanceToVelocity(Pinpoint.INSTANCE.getPosX(),Pinpoint.INSTANCE.getPosY());
+            velocity = Turret.INSTANCE.distanceToVelocity(Pinpoint.INSTANCE.getPosX(),Pinpoint.INSTANCE.getPosY(), Aliance.BLUE);
             //Turret.INSTANCE.followGoalOdometryPositionalLL2().schedule();
         }
 
-        hoodPosition = Turret.INSTANCE.distanceToPosition(Pinpoint.INSTANCE.getPosX(), Pinpoint.INSTANCE.getPosY());
+        hoodPosition = Turret.INSTANCE.distanceToPosition(Pinpoint.INSTANCE.getPosX(), Pinpoint.INSTANCE.getPosY(), Aliance.BLUE);
         Turret.INSTANCE.setVelocity(velocity).schedule();
         Turret.INSTANCE.setHoodPosition(hoodPosition).schedule();
         Turret.INSTANCE.periodic();

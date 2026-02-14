@@ -19,10 +19,13 @@ import org.firstinspires.ftc.robotcore.external.navigation.Pose2D;
 import org.firstinspires.ftc.teamcode.Subsystems.Pinpoint;
 import org.firstinspires.ftc.teamcode.Subsystems.Drivetrain;
 import org.firstinspires.ftc.teamcode.Subsystems.Turret;
+import org.firstinspires.ftc.teamcode.Utils.Aliance;
+
 @Config
 @TeleOp
 public class TestTurret extends NextFTCOpMode {
     public static double turretAngle = 0;
+    public boolean goalTrack = false;
     public TestTurret() {
         addComponents(
                 new SubsystemComponent(Drivetrain.INSTANCE, Turret.INSTANCE, Pinpoint.INSTANCE),
@@ -38,7 +41,9 @@ public class TestTurret extends NextFTCOpMode {
         Drivetrain.INSTANCE.startRobotDrive().schedule();
 
         Gamepads.gamepad1().cross()
-                .whenBecomesTrue(Turret.INSTANCE.setToZero());
+                .toggleOnBecomesTrue()
+                .whenBecomesTrue(()->goalTrack = true)
+                        .whenBecomesFalse(()->goalTrack=false);
 
 
         Gamepads.gamepad1().square()
@@ -51,12 +56,21 @@ public class TestTurret extends NextFTCOpMode {
         telemetry.addData("x", Pinpoint.INSTANCE.getPosX());
         telemetry.addData("y", Pinpoint.INSTANCE.getPosY());
         telemetry.addData("heading", Pinpoint.INSTANCE.getHeading());
+        telemetry.addData("Current Angle", Turret.INSTANCE.getTurretAngle());
         telemetry.addData("360 Heading", (((Pinpoint.INSTANCE.getHeading() % 360) + 360) % 360));
+        telemetry.addData("Turret Tracking", goalTrack);
+        if(!goalTrack){
+            Turret.INSTANCE.setToAngle(turretAngle).schedule();
+        }
+        else if(goalTrack){
+            Turret.INSTANCE.followGoalOdometryPositional(Aliance.BLUE,10).schedule();
+        }
+        Turret.INSTANCE.setVelocity(0).schedule();
 
         //telemetry.addData("Turret Angle Set", (Turret.INSTANCE.getTurretAngleSet()));
         //telemetry.addData("Turret Power Set", (Turret.INSTANCE.getTurretPowerSet()));
-        telemetry.addData("Turret Angle", Turret.INSTANCE.getTurretAngle());
-        telemetry.addData("Turret Rotations", Turret.INSTANCE.getTurretRotations());
+//        telemetry.addData("Turret Angle", Turret.INSTANCE.getTurretAngle());
+//        telemetry.addData("Turret Rotations", Turret.INSTANCE.getTurretRotations());
         telemetry.update();
 
 
